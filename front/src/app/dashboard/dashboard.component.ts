@@ -1,13 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ApiService, Product, User } from '../services/api.service';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { ApiService, User } from '../services/api.service';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, RouterLink],
+  imports: [RouterLink, RouterLinkActive],
   template: `
     <div class="layout" [class.sidebar-open]="sidebarOpen()">
       <!-- Mobile Header -->
@@ -26,9 +24,13 @@ import { ApiService, Product, User } from '../services/api.service';
         </div>
         
         <nav class="nav-menu">
-          <a routerLink="/" class="nav-item active">
+          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item" (click)="closeSidebar()">
             <span class="nav-icon">🏠</span>
             <span class="nav-text">Home</span>
+          </a>
+          <a routerLink="/products" routerLinkActive="active" class="nav-item" (click)="closeSidebar()">
+            <span class="nav-icon">📦</span>
+            <span class="nav-text">Products</span>
           </a>
         </nav>
 
@@ -52,53 +54,26 @@ import { ApiService, Product, User } from '../services/api.service';
       <!-- Main Content -->
       <main class="main-content">
         <div class="content-header">
-          <h1>Dashboard</h1>
+          <h1>Welcome</h1>
         </div>
 
         <div class="content-body">
-          <section class="products-section">
-            <div class="section-header">
-              <h2>Products</h2>
-              <button class="btn btn-primary" (click)="showAddForm.set(!showAddForm())">
-                {{ showAddForm() ? 'Cancel' : '+ Add Product' }}
-              </button>
+          <div class="welcome-card">
+            <div class="welcome-icon">👋</div>
+            <h2>Welcome to POS System</h2>
+            @if (user()) {
+              <p class="welcome-user">Logged in as <strong>{{ user()?.email }}</strong></p>
+            }
+            <p class="welcome-text">Manage your point of sale operations from this dashboard.</p>
+            
+            <div class="quick-actions">
+              <a routerLink="/products" class="action-card">
+                <span class="action-icon">📦</span>
+                <span class="action-label">Products</span>
+                <span class="action-desc">Manage your inventory</span>
+              </a>
             </div>
-
-            @if (showAddForm()) {
-              <form class="add-form card" (submit)="addProduct($event)">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="name">Product Name</label>
-                    <input id="name" type="text" [(ngModel)]="newProduct.name" name="name" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="price">Price (cents)</label>
-                    <input id="price" type="number" [(ngModel)]="newProduct.price_cents" name="price" required>
-                  </div>
-                  <button type="submit" class="btn btn-primary">Save</button>
-                </div>
-              </form>
-            }
-
-            @if (loading()) {
-              <div class="loading-state">
-                <p>Loading products...</p>
-              </div>
-            } @else if (products().length === 0) {
-              <div class="empty-state card">
-                <p>No products yet. Add your first product!</p>
-              </div>
-            } @else {
-              <div class="products-grid">
-                @for (product of products(); track product.id) {
-                  <div class="card product-card">
-                    <h3>{{ product.name }}</h3>
-                    <p class="price">\${{ (product.price_cents / 100) | number:'1.2-2' }}</p>
-                  </div>
-                }
-              </div>
-            }
-          </section>
+          </div>
         </div>
       </main>
     </div>
@@ -249,120 +224,83 @@ import { ApiService, Product, User } from '../services/api.service';
     .content-body {
       background: rgba(255, 255, 255, 0.03);
       border-radius: 16px;
-      padding: 1.5rem;
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .section-header h2 {
-      margin: 0;
-      color: white;
-      font-size: 1.25rem;
-    }
-
-    /* Cards & Products */
-    .card {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 1.5rem;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .products-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-
-    .product-card h3 {
-      margin: 0 0 0.5rem 0;
-      color: white;
-      font-size: 1.1rem;
-    }
-
-    .price {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #10b981;
-      margin: 0;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: rgba(255, 255, 255, 0.6);
-      padding: 3rem;
-    }
-
-    .loading-state {
-      text-align: center;
-      color: rgba(255, 255, 255, 0.6);
       padding: 2rem;
     }
 
-    /* Form */
-    .add-form {
-      margin-bottom: 1.5rem;
+    /* Welcome Card */
+    .welcome-card {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto;
     }
 
-    .form-row {
+    .welcome-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .welcome-card h2 {
+      color: white;
+      margin: 0 0 0.5rem 0;
+      font-size: 1.75rem;
+    }
+
+    .welcome-user {
+      color: rgba(255, 255, 255, 0.8);
+      margin: 0 0 0.5rem 0;
+    }
+
+    .welcome-user strong {
+      color: #667eea;
+    }
+
+    .welcome-text {
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0 0 2rem 0;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
       display: flex;
       gap: 1rem;
-      align-items: flex-end;
+      justify-content: center;
       flex-wrap: wrap;
     }
 
-    .form-group {
-      flex: 1;
+    .action-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s ease;
       min-width: 150px;
     }
 
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.875rem;
+    .action-card:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     }
 
-    .form-group input {
-      width: 100%;
-      padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
+    .action-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .action-label {
       color: white;
-      font-size: 1rem;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.25rem;
     }
 
-    .form-group input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    /* Buttons */
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 500;
-      font-size: 0.9rem;
-      transition: all 0.2s ease;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    .action-desc {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.8rem;
     }
 
     /* Mobile Header */
@@ -434,15 +372,11 @@ import { ApiService, Product, User } from '../services/api.service';
         padding: 80px 1rem 1rem;
       }
 
-      .products-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .form-row {
+      .quick-actions {
         flex-direction: column;
       }
 
-      .form-group {
+      .action-card {
         width: 100%;
       }
     }
@@ -452,17 +386,11 @@ export class DashboardComponent implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
 
-  products = signal<Product[]>([]);
-  loading = signal(true);
   user = signal<User | null>(null);
-  showAddForm = signal(false);
   sidebarOpen = signal(false);
-
-  newProduct = { name: '', price_cents: 0 };
 
   ngOnInit() {
     this.api.user$.subscribe(user => this.user.set(user));
-    this.loadProducts();
   }
 
   toggleSidebar() {
@@ -471,32 +399,6 @@ export class DashboardComponent implements OnInit {
 
   closeSidebar() {
     this.sidebarOpen.set(false);
-  }
-
-  loadProducts() {
-    this.loading.set(true);
-    this.api.getProducts().subscribe({
-      next: (products) => {
-        this.products.set(products);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-      }
-    });
-  }
-
-  addProduct(event: Event) {
-    event.preventDefault();
-    if (!this.newProduct.name || this.newProduct.price_cents <= 0) return;
-
-    this.api.createProduct(this.newProduct).subscribe({
-      next: (product) => {
-        this.products.update(list => [...list, product]);
-        this.newProduct = { name: '', price_cents: 0 };
-        this.showAddForm.set(false);
-      }
-    });
   }
 
   logout() {

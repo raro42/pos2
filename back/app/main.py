@@ -114,3 +114,55 @@ def create_product(
     session.commit()
     session.refresh(product)
     return product
+
+
+@app.put("/products/{product_id}")
+def update_product(
+    product_id: int,
+    product_update: models.ProductUpdate,
+    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    session: Session = Depends(get_session)
+) -> models.Product:
+    # Get product and verify tenant ownership
+    product = session.exec(
+        select(models.Product).where(
+            models.Product.id == product_id,
+            models.Product.tenant_id == current_user.tenant_id
+        )
+    ).first()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Update fields
+    if product_update.name is not None:
+        product.name = product_update.name
+    if product_update.price_cents is not None:
+        product.price_cents = product_update.price_cents
+    
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@app.delete("/products/{product_id}")
+def delete_product(
+    product_id: int,
+    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    session: Session = Depends(get_session)
+) -> dict:
+    # Get product and verify tenant ownership
+    product = session.exec(
+        select(models.Product).where(
+            models.Product.id == product_id,
+            models.Product.tenant_id == current_user.tenant_id
+        )
+    ).first()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    session.delete(product)
+    session.commit()
+    return {"status": "deleted", "id": product_id}

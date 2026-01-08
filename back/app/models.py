@@ -36,3 +36,8 @@ class UserRegister(SQLModel):
     email: str
     password: str
     full_name: str | None = None
+
+
+class ProductUpdate(SQLModel):
+    name: str | None = None
+    price_cents: int | None = None

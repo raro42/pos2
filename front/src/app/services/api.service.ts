@@ -103,4 +103,12 @@ export class ApiService {
   createProduct(product: Product): Observable<Product> {
     return this.http.post<Product>(`${this.apiUrl}/products`, product);
   }
+
+  updateProduct(id: number, product: Partial<Product>): Observable<Product> {
+    return this.http.put<Product>(`${this.apiUrl}/products/${id}`, product);
+  }
+
+  deleteProduct(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/products/${id}`);
+  }
 }
