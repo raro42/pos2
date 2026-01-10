@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     algorithm: str = Field(default="HS256", validation_alias="ALGORITHM")
     access_token_expire_minutes: int = Field(default=30, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
 
+    stripe_secret_key: str = Field(default="", validation_alias="STRIPE_SECRET_KEY")
+    stripe_publishable_key: str = Field(default="", validation_alias="STRIPE_PUBLISHABLE_KEY")
+    stripe_currency: str = Field(default="mxn", validation_alias="STRIPE_CURRENCY")
+
     @property
     def database_url(self) -> str:
         # SQLModel uses SQLAlchemy under the hood; this uses the psycopg driver (v3).

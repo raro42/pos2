@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { Observable, BehaviorSubject, tap, Subject } from 'rxjs';
 
-// Define interfaces for API interactions
+// Interfaces
 export interface User {
   email: string;
   tenant_id: number;
@@ -24,6 +24,52 @@ export interface Product {
   name: string;
   price_cents: number;
   tenant_id?: number;
+  image_filename?: string;
+  ingredients?: string;
+}
+
+export interface Table {
+  id?: number;
+  name: string;
+  token?: string;
+  tenant_id?: number;
+}
+
+export interface OrderItem {
+  id?: number;
+  product_name: string;
+  quantity: number;
+  price_cents: number;
+  notes?: string;
+}
+
+export interface Order {
+  id: number;
+  table_name: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+  items: OrderItem[];
+  total_cents: number;
+}
+
+export interface MenuResponse {
+  table_name: string;
+  table_id: number;
+  tenant_id: number;
+  tenant_name: string;
+  products: Product[];
+}
+
+export interface OrderItemCreate {
+  product_id: number;
+  quantity: number;
+  notes?: string;
+}
+
+export interface OrderCreate {
+  items: OrderItemCreate[];
+  notes?: string;
 }
 
 @Injectable({
@@ -31,13 +77,16 @@ export interface Product {
 })
 export class ApiService {
   private http = inject(HttpClient);
-  // Assuming backend is on localhost:8020 as per context
-  private apiUrl = 'http://localhost:8020';
+  private apiUrl = 'http://192.168.1.98:8020';
+  private wsUrl = 'ws://192.168.1.98:8021';
 
   private tokenKey = 'pos_token';
   private userSubject = new BehaviorSubject<User | null>(null);
+  private orderUpdates = new Subject<any>();
+  private ws: WebSocket | null = null;
 
   user$ = this.userSubject.asObservable();
+  orderUpdates$ = this.orderUpdates.asObservable();
 
   constructor() {
     this.loadToken();
@@ -47,7 +96,6 @@ export class ApiService {
     if (typeof localStorage !== 'undefined') {
       const token = localStorage.getItem(this.tokenKey);
       if (token) {
-        // Decode token to get user info (simplified, normally use a helper)
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           this.userSubject.next({
@@ -68,6 +116,11 @@ export class ApiService {
     return null;
   }
 
+  getCurrentUser(): User | null {
+    return this.userSubject.value;
+  }
+
+  // Auth
   register(data: any): Observable<RegisterResponse> {
     let params = new HttpParams();
     Object.keys(data).forEach(key => {
@@ -94,8 +147,10 @@ export class ApiService {
       localStorage.removeItem(this.tokenKey);
     }
     this.userSubject.next(null);
+    this.disconnectWebSocket();
   }
 
+  // Products
   getProducts(): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.apiUrl}/products`);
   }
@@ -110,5 +165,97 @@ export class ApiService {
 
   deleteProduct(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/products/${id}`);
+  }
+
+  uploadProductImage(productId: number, file: File): Observable<Product> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<Product>(`${this.apiUrl}/products/${productId}/image`, formData);
+  }
+
+  getProductImageUrl(product: Product): string | null {
+    if (!product.image_filename || !product.tenant_id) return null;
+    return `${this.apiUrl}/uploads/${product.tenant_id}/products/${product.image_filename}`;
+  }
+
+  // Tables
+  getTables(): Observable<Table[]> {
+    return this.http.get<Table[]>(`${this.apiUrl}/tables`);
+  }
+
+  createTable(name: string): Observable<Table> {
+    return this.http.post<Table>(`${this.apiUrl}/tables`, { name });
+  }
+
+  deleteTable(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/tables/${id}`);
+  }
+
+  // Orders
+  getOrders(): Observable<Order[]> {
+    return this.http.get<Order[]>(`${this.apiUrl}/orders`);
+  }
+
+  updateOrderStatus(orderId: number, status: string): Observable<any> {
+    return this.http.put(`${this.apiUrl}/orders/${orderId}/status`, { status });
+  }
+
+  // Public Menu (no auth)
+  getMenu(tableToken: string): Observable<MenuResponse> {
+    return this.http.get<MenuResponse>(`${this.apiUrl}/menu/${tableToken}`);
+  }
+
+  submitOrder(tableToken: string, order: OrderCreate): Observable<any> {
+    return this.http.post(`${this.apiUrl}/menu/${tableToken}/order`, order);
+  }
+
+  // Payments
+  createPaymentIntent(orderId: number, tableToken: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/orders/${orderId}/create-payment-intent?table_token=${tableToken}`, {});
+  }
+
+  confirmPayment(orderId: number, tableToken: string, paymentIntentId: string): Observable<any> {
+    return this.http.post(
+      `${this.apiUrl}/orders/${orderId}/confirm-payment?table_token=${tableToken}&payment_intent_id=${paymentIntentId}`,
+      {}
+    );
+  }
+
+  getStripePublishableKey(): string {
+    return 'pk_test_51SjyYeC5b7HsHF8lLQmByWhJbPSroVBO2Q39x64b8QD4ixNlBolibtxXTHCk9ZFQe1vS0ZPXBYj4HvbNmFESLSsC00bd6v2sOS';
+  }
+
+  // WebSocket for real-time updates
+  connectWebSocket(): void {
+    const user = this.getCurrentUser();
+    if (!user || this.ws) return;
+
+    this.ws = new WebSocket(`${this.wsUrl}/ws/${user.tenant_id}`);
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.orderUpdates.next(data);
+      } catch (e) {
+        console.error('WebSocket parse error:', e);
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.ws = null;
+      // Reconnect after 3 seconds
+      setTimeout(() => this.connectWebSocket(), 3000);
+    };
+
+    this.ws.onerror = () => {
+      this.ws?.close();
+    };
+  }
+
+  disconnectWebSocket(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
   }
 }

@@ -1,6 +1,16 @@
 from datetime import datetime, timezone
+from enum import Enum
+from uuid import uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
+
+
+class OrderStatus(str, Enum):
+    pending = "pending"
+    preparing = "preparing"
+    ready = "ready"
+    paid = "paid"
+    completed = "completed"
 
 
 class Tenant(SQLModel, table=True):
@@ -29,8 +39,39 @@ class Product(TenantMixin, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     price_cents: int
+    image_filename: str | None = None  # Stored in uploads/{tenant_id}/products/
+    ingredients: str | None = None  # Comma-separated list
 
 
+class Table(TenantMixin, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str  # e.g., "Table 5"
+    token: str = Field(default_factory=lambda: str(uuid4()), unique=True, index=True)
+
+
+class Order(TenantMixin, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    table_id: int = Field(foreign_key="table.id")
+    status: OrderStatus = Field(default=OrderStatus.pending)
+    notes: str | None = None  # General order notes
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    items: list["OrderItem"] = Relationship(back_populates="order")
+
+
+class OrderItem(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    order_id: int = Field(foreign_key="order.id")
+    product_id: int = Field(foreign_key="product.id")
+    product_name: str  # Snapshot of product name at order time
+    quantity: int
+    price_cents: int  # Snapshot of price at order time
+    notes: str | None = None  # Item-specific notes (e.g., "no onions")
+    
+    order: Order = Relationship(back_populates="items")
+
+
+# Request/Response Models
 class UserRegister(SQLModel):
     tenant_name: str
     email: str
@@ -41,3 +82,23 @@ class UserRegister(SQLModel):
 class ProductUpdate(SQLModel):
     name: str | None = None
     price_cents: int | None = None
+    ingredients: str | None = None
+
+
+class TableCreate(SQLModel):
+    name: str
+
+
+class OrderItemCreate(SQLModel):
+    product_id: int
+    quantity: int
+    notes: str | None = None
+
+
+class OrderCreate(SQLModel):
+    items: list[OrderItemCreate]
+    notes: str | None = None
+
+
+class OrderStatusUpdate(SQLModel):
+    status: OrderStatus

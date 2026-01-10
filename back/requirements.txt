@@ -15,3 +15,9 @@ passlib[bcrypt]
 bcrypt<4.1.0  # passlib incompatible with bcrypt>=4.1
 python-jose[cryptography]
 python-multipart
+
+# Redis for pub/sub
+redis>=5.0
+
+# Payment processing
+stripe>=8.0
