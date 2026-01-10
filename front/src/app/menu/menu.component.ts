@@ -110,34 +110,30 @@ interface PlacedOrder {
                         </svg>
                       </div>
                     }
-                    <div class="product-info">
-                      <div class="product-title-row">
+                    <div class="product-details">
+                      <div class="product-main">
                         <h3>{{ product.name }}</h3>
-                        @if (product.ingredients) {
-                          <button class="info-btn" (click)="toggleIngredients(product.id!); $event.stopPropagation()" [class.active]="showIngredientsFor() === product.id" title="View ingredients">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                            </svg>
-                          </button>
-                        }
+                        <span class="product-price">\${{ (product.price_cents / 100) | number:'1.2-2' }}</span>
                       </div>
+                      @if (product.ingredients) {
+                        <button class="ingredients-toggle" (click)="toggleIngredients(product.id!); $event.stopPropagation()">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                          </svg>
+                          <span>Ingredients</span>
+                          <svg class="chevron-icon" [class.open]="showIngredientsFor() === product.id" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6,9 12,15 18,9"/>
+                          </svg>
+                        </button>
+                      }
                       @if (showIngredientsFor() === product.id && product.ingredients) {
-                        <div class="ingredients-popup">
-                          <div class="ingredients-header">
-                            <span>Ingredients</span>
-                            <button class="close-ingredients" (click)="showIngredientsFor.set(null); $event.stopPropagation()">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 6L6 18M6 6l12 12"/>
-                              </svg>
-                            </button>
-                          </div>
+                        <div class="ingredients-content">
                           <p>{{ product.ingredients }}</p>
                         </div>
                       }
-                      <span class="product-price">\${{ (product.price_cents / 100) | number:'1.2-2' }}</span>
                     </div>
                     <button class="add-btn" (click)="addToCart(product)">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                       </svg>
                     </button>
@@ -356,21 +352,27 @@ interface PlacedOrder {
 
     .product-card {
       display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 12px;
+      gap: 14px;
+      padding: 14px;
       background: var(--color-bg);
-      border-radius: var(--radius-md);
-      margin-bottom: 8px;
-      position: relative;
+      border-radius: var(--radius-lg);
+      margin-bottom: 10px;
     }
 
     .product-card:last-child { margin-bottom: 0; }
-    .product-img { width: 60px; height: 60px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; }
+
+    .product-img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+    }
+
     .product-img-placeholder {
-      width: 60px;
-      height: 60px;
-      border-radius: var(--radius-sm);
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-md);
       flex-shrink: 0;
       background: var(--color-border);
       display: flex;
@@ -378,56 +380,91 @@ interface PlacedOrder {
       justify-content: center;
       color: var(--color-text-muted);
     }
-    .product-info { flex: 1; min-width: 0; }
-    .product-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .product-info h3 { margin: 0; font-size: 0.9375rem; font-weight: 500; color: var(--color-text); }
-    .info-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--color-text-muted);
-      cursor: pointer;
+
+    .product-details {
+      flex: 1;
+      min-width: 0;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: center;
-      padding: 0;
-      flex-shrink: 0;
-      transition: all 0.15s;
-      &:hover, &.active { color: var(--color-primary); }
     }
-    .ingredients-popup {
+
+    .product-main {
+      margin-bottom: 6px;
+    }
+
+    .product-main h3 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-text);
+      line-height: 1.3;
+    }
+
+    .product-price {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+
+    .ingredients-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      touch-action: manipulation;
+    }
+
+    .ingredients-toggle:active {
+      background: var(--color-bg);
+    }
+
+    .ingredients-toggle svg:first-child {
+      color: var(--color-primary);
+    }
+
+    .chevron-icon {
+      transition: transform 0.2s;
+      margin-left: 2px;
+    }
+
+    .chevron-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .ingredients-content {
+      margin-top: 10px;
+      padding: 12px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
-      padding: 10px 12px;
-      margin: 8px 0;
-      box-shadow: var(--shadow-md);
-      animation: fadeIn 0.15s ease;
+      animation: slideIn 0.2s ease;
     }
-    .ingredients-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-      span { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+
+    .ingredients-content p {
+      margin: 0;
+      font-size: 0.9375rem;
+      color: var(--color-text);
+      line-height: 1.5;
     }
-    .close-ingredients {
-      background: none;
-      border: none;
-      color: var(--color-text-muted);
-      cursor: pointer;
-      padding: 2px;
-      &:hover { color: var(--color-text); }
+
+    @keyframes slideIn {
+      from { opacity: 0; max-height: 0; padding: 0 12px; margin-top: 0; }
+      to { opacity: 1; max-height: 200px; padding: 12px; margin-top: 10px; }
     }
-    .ingredients-popup p { margin: 0; font-size: 0.875rem; color: var(--color-text); line-height: 1.4; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-    .product-price { font-size: 0.9375rem; font-weight: 600; color: var(--color-primary); display: block; margin-top: 4px; }
 
     .add-btn {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: none;
       background: var(--color-primary);
@@ -436,11 +473,14 @@ interface PlacedOrder {
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      align-self: center;
       touch-action: manipulation;
       transition: background 0.15s, transform 0.1s;
-      &:hover { background: var(--color-primary-hover); }
-      &:active { transform: scale(0.95); }
     }
+
+    .add-btn:hover { background: var(--color-primary-hover); }
+    .add-btn:active { transform: scale(0.92); }
 
     /* Cart */
     .cart-panel {
@@ -605,7 +645,18 @@ export class MenuComponent implements OnInit {
 
   loadStoredOrders() {
     const stored = localStorage.getItem(`orders_${this.tableToken}`);
-    if (stored) { try { this.placedOrders.set(JSON.parse(stored)); } catch { } }
+    if (stored) {
+      try {
+        const orders: PlacedOrder[] = JSON.parse(stored);
+        // Filter out paid or completed orders - they should not persist
+        const activeOrders = orders.filter(o => o.status !== 'paid' && o.status !== 'completed');
+        this.placedOrders.set(activeOrders);
+        // Update storage with only active orders
+        if (activeOrders.length !== orders.length) {
+          this.saveOrders();
+        }
+      } catch { }
+    }
   }
 
   saveOrders() { localStorage.setItem(`orders_${this.tableToken}`, JSON.stringify(this.placedOrders())); }
@@ -780,5 +831,12 @@ export class MenuComponent implements OnInit {
   }
 
   cancelPayment() { this.showPaymentModal.set(false); this.cardError.set(''); this.paymentSuccess.set(false); }
-  finishPayment() { this.showPaymentModal.set(false); this.paymentSuccess.set(false); }
+
+  finishPayment() {
+    this.showPaymentModal.set(false);
+    this.paymentSuccess.set(false);
+    // Clear the order from localStorage since it's paid
+    this.placedOrders.set([]);
+    localStorage.removeItem(`orders_${this.tableToken}`);
+  }
 }

@@ -1,13 +1,31 @@
-import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
+import { DecimalPipe, DatePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ApiService, Order, User } from '../services/api.service';
 import { Subscription } from 'rxjs';
+import { AgGridAngular } from 'ag-grid-angular';
+import {
+  ColDef,
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  TextFilterModule,
+  NumberFilterModule,
+  DateFilterModule,
+  themeQuartz,
+  ICellRendererParams,
+} from 'ag-grid-community';
+
+ModuleRegistry.registerModules([
+  ClientSideRowModelModule,
+  TextFilterModule,
+  NumberFilterModule,
+  DateFilterModule,
+]);
 
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [DecimalPipe, RouterLink, RouterLinkActive],
+  imports: [DecimalPipe, DatePipe, RouterLink, RouterLinkActive, AgGridAngular],
   template: `
     <div class="layout" [class.sidebar-open]="sidebarOpen()">
       <header class="mobile-header">
@@ -88,54 +106,78 @@ import { Subscription } from 'rxjs';
         <div class="content">
           @if (loading()) {
             <div class="empty-state"><p>Loading orders...</p></div>
-          } @else if (orders().length === 0) {
-            <div class="empty-state">
-              <div class="empty-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                  <polyline points="14,2 14,8 20,8"/>
-                </svg>
-              </div>
-              <h3>No orders yet</h3>
-              <p>Orders will appear here when customers place them</p>
-            </div>
           } @else {
-            <div class="order-grid">
-              @for (order of orders(); track order.id) {
-                <div class="order-card" [class]="'status-' + order.status">
-                  <div class="order-header">
-                    <div>
-                      <span class="order-id">#{{ order.id }}</span>
-                      <span class="order-table">{{ order.table_name }}</span>
-                    </div>
-                    <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
-                  </div>
-
-                  <div class="order-items">
-                    @for (item of order.items; track item.id) {
-                      <div class="order-item">
-                        <span class="item-qty">{{ item.quantity }}x</span>
-                        <span class="item-name">{{ item.product_name }}</span>
-                        <span class="item-price">\${{ (item.price_cents * item.quantity / 100) | number:'1.2-2' }}</span>
+            <!-- Active Orders Section -->
+            @if (activeOrders().length > 0) {
+              <div class="section-header">
+                <h2>Active Orders</h2>
+                <span class="badge">{{ activeOrders().length }}</span>
+              </div>
+              <div class="order-grid">
+                @for (order of activeOrders(); track order.id) {
+                  <div class="order-card" [class]="'status-' + order.status">
+                    <div class="order-header">
+                      <div>
+                        <span class="order-id">#{{ order.id }}</span>
+                        <span class="order-table">{{ order.table_name }}</span>
                       </div>
-                    }
-                  </div>
+                      <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
+                    </div>
 
-                  <div class="order-footer">
-                    <span class="order-total">Total: \${{ (order.total_cents / 100) | number:'1.2-2' }}</span>
-                    <div class="order-actions">
-                      @if (order.status === 'pending') {
-                        <button class="btn btn-sm btn-primary" (click)="updateStatus(order, 'preparing')">Start</button>
-                      } @else if (order.status === 'preparing') {
-                        <button class="btn btn-sm btn-success" (click)="updateStatus(order, 'ready')">Ready</button>
-                      } @else if (order.status === 'ready') {
-                        <button class="btn btn-sm btn-secondary" (click)="updateStatus(order, 'completed')">Complete</button>
+                    <div class="order-items">
+                      @for (item of order.items; track item.id) {
+                        <div class="order-item">
+                          <span class="item-qty">{{ item.quantity }}x</span>
+                          <span class="item-name">{{ item.product_name }}</span>
+                          <span class="item-price">\${{ (item.price_cents * item.quantity / 100) | number:'1.2-2' }}</span>
+                        </div>
                       }
                     </div>
+
+                    <div class="order-footer">
+                      <span class="order-total">Total: \${{ (order.total_cents / 100) | number:'1.2-2' }}</span>
+                      <div class="order-actions">
+                        @if (order.status === 'pending') {
+                          <button class="btn btn-sm btn-primary" (click)="updateStatus(order, 'preparing')">Start</button>
+                        } @else if (order.status === 'preparing') {
+                          <button class="btn btn-sm btn-success" (click)="updateStatus(order, 'ready')">Ready</button>
+                        } @else if (order.status === 'ready') {
+                          <button class="btn btn-sm btn-secondary" (click)="updateStatus(order, 'completed')">Complete</button>
+                        }
+                      </div>
+                    </div>
                   </div>
+                }
+              </div>
+            } @else if (completedOrders().length === 0) {
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14,2 14,8 20,8"/>
+                  </svg>
                 </div>
-              }
-            </div>
+                <h3>No orders yet</h3>
+                <p>Orders will appear here when customers place them</p>
+              </div>
+            }
+
+            <!-- Order History Section (AG Grid) -->
+            @if (completedOrders().length > 0) {
+              <div class="section-header history-header">
+                <h2>Order History</h2>
+                <span class="badge secondary">{{ completedOrders().length }}</span>
+              </div>
+              <div class="grid-container">
+                <ag-grid-angular
+                  style="width: 100%; height: 400px;"
+                  [theme]="gridTheme"
+                  [rowData]="completedOrders()"
+                  [columnDefs]="columnDefs"
+                  [defaultColDef]="defaultColDef"
+                />
+              </div>
+            }
           }
         </div>
       </main>
@@ -172,6 +214,15 @@ import { Subscription } from 'rxjs';
     .main { flex: 1; margin-left: 240px; padding: var(--space-6); }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); }
     .page-header h1 { font-size: 1.5rem; font-weight: 600; color: var(--color-text); margin: 0; }
+
+    .section-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .section-header h2 { font-size: 1.125rem; font-weight: 600; color: var(--color-text); margin: 0; }
+    .history-header { margin-top: var(--space-6); }
+    .badge {
+      padding: var(--space-1) var(--space-3); border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      background: var(--color-primary); color: white;
+      &.secondary { background: var(--color-text-muted); }
+    }
 
     .btn { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: none; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; }
     .btn-primary { background: var(--color-primary); color: white; &:hover { background: var(--color-primary-hover); } }
@@ -223,6 +274,13 @@ import { Subscription } from 'rxjs';
     .order-total { font-weight: 600; color: var(--color-text); }
     .order-actions { display: flex; gap: var(--space-2); }
 
+    .grid-container {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
     .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 56px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 0 var(--space-4); align-items: center; gap: var(--space-3); z-index: 99; }
     .menu-toggle { display: flex; flex-direction: column; gap: 4px; background: none; border: none; padding: var(--space-2); cursor: pointer; }
     .menu-toggle span { display: block; width: 20px; height: 2px; background: var(--color-text); border-radius: 1px; }
@@ -249,6 +307,101 @@ export class OrdersComponent implements OnInit, OnDestroy {
   loading = signal(true);
   user = signal<User | null>(null);
   sidebarOpen = signal(false);
+
+  // Computed signals for separating active and completed orders
+  activeOrders = computed(() =>
+    this.orders().filter(o => ['pending', 'preparing', 'ready'].includes(o.status))
+  );
+  completedOrders = computed(() =>
+    this.orders().filter(o => ['completed', 'paid'].includes(o.status))
+  );
+
+  // AG Grid configuration - custom light theme matching app colors
+  gridTheme = themeQuartz.withParams({
+    backgroundColor: '#FFFFFF',
+    foregroundColor: '#1C1917',
+    accentColor: '#D35233',
+    borderColor: '#E7E5E4',
+    chromeBackgroundColor: '#FAF9F7',
+    headerTextColor: '#1C1917',
+    oddRowBackgroundColor: 'rgba(0, 0, 0, 0.02)',
+    rowHoverColor: 'rgba(211, 82, 51, 0.05)',
+    selectedRowBackgroundColor: 'rgba(211, 82, 51, 0.1)',
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    borderRadius: 10,
+    wrapperBorderRadius: 10,
+  });
+
+  columnDefs: ColDef[] = [
+    {
+      field: 'id',
+      headerName: 'Order #',
+      width: 100,
+      valueFormatter: (params) => `#${params.value}`,
+    },
+    {
+      field: 'table_name',
+      headerName: 'Table',
+      width: 120,
+    },
+    {
+      field: 'items',
+      headerName: 'Items',
+      flex: 1,
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return params.value.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ');
+      },
+    },
+    {
+      field: 'total_cents',
+      headerName: 'Total',
+      width: 110,
+      valueFormatter: (params) => {
+        if (params.value == null) return '';
+        return `$${(params.value / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      },
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 120,
+      cellRenderer: (params: ICellRendererParams) => {
+        const status = params.value;
+        const colorMap: Record<string, string> = {
+          completed: '#78716C',  // matches --color-text-muted
+          paid: '#16A34A',       // matches --color-success
+        };
+        const color = colorMap[status] || '#78716C';
+        return `<span style="
+          display: inline-block;
+          padding: 2px 10px;
+          border-radius: 12px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          background: ${color}20;
+          color: ${color};
+          text-transform: capitalize;
+          line-height: 1.4;
+        ">${status}</span>`;
+      },
+    },
+    {
+      field: 'created_at',
+      headerName: 'Date',
+      width: 160,
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return new Date(params.value).toLocaleString();
+      },
+    },
+  ];
+
+  defaultColDef: ColDef = {
+    sortable: true,
+    filter: true,
+    resizable: true,
+  };
 
   ngOnInit() {
     this.api.user$.subscribe(user => this.user.set(user));
