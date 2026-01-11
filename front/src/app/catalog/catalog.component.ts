@@ -163,7 +163,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
                   <select [(ngModel)]="addFormData.providerProductId">
                     <option [value]="null">No specific provider</option>
                     @for (provider of selectedItem()!.providers; track provider.provider_id) {
-                      <option [value]="getProviderProductId(selectedItem()!.id, provider.provider_id)">
+                      <option [value]="provider.provider_product_id || null">
                         {{ provider.provider_name }}
                         @if (provider.price_cents) {
                           - {{ formatPrice(provider.price_cents) }}
@@ -500,18 +500,12 @@ export class CatalogComponent implements OnInit {
     };
   }
 
-  getProviderProductId(catalogId: number, providerId: number): number | null {
-    // This is a simplified version - in reality, we'd need to fetch provider products
-    // For now, we'll use a placeholder. The backend will handle the mapping.
-    return null; // Backend will find the matching provider_product_id
-  }
-
   getSelectedProviderPrice(): number | null {
     const item = this.selectedItem();
     if (!item || !this.addFormData.providerProductId) return null;
     
     const provider = item.providers.find(p => 
-      this.getProviderProductId(item.id, p.provider_id) === this.addFormData.providerProductId
+      p.provider_product_id === this.addFormData.providerProductId
     );
     return provider?.price_cents || null;
   }

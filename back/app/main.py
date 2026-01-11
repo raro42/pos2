@@ -767,6 +767,7 @@ def list_catalog(
                 providers_data.append({
                     "provider_id": provider.id,
                     "provider_name": provider.name,
+                    "provider_product_id": pp.id,
                     "price_cents": pp.price_cents,
                     "image_url": pp.image_url,
                     "country": pp.country,

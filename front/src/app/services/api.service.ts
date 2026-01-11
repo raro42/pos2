@@ -145,6 +145,7 @@ export interface CatalogItem {
 export interface ProviderInfo {
   provider_id: number;
   provider_name: string;
+  provider_product_id?: number;
   price_cents?: number | null;
   image_url?: string | null;
   country?: string | null;
