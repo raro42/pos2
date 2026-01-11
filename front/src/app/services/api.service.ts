@@ -29,6 +29,17 @@ export interface Product {
   ingredients?: string;
   image_size_bytes?: number | null;
   image_size_formatted?: string | null;
+  // Wine details
+  description?: string;
+  detailed_description?: string;
+  country?: string;
+  region?: string;
+  wine_style?: string;
+  vintage?: number;
+  winery?: string;
+  grape_variety?: string;
+  aromas?: string;
+  elaboration?: string;
 }
 
 export interface Table {

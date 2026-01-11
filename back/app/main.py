@@ -1234,7 +1234,16 @@ def get_menu(
     for tp in tenant_products:
         # Get image from provider product if available, otherwise use tenant product image
         image_filename = tp.image_filename
-        if not image_filename and tp.provider_product_id:
+        provider_product = None
+        catalog_item = None
+        
+        # Get catalog item for description
+        catalog_item = session.exec(
+            select(models.ProductCatalog).where(models.ProductCatalog.id == tp.catalog_id)
+        ).first()
+        
+        # Get provider product for detailed wine info
+        if tp.provider_product_id:
             provider_product = session.exec(
                 select(models.ProviderProduct).where(models.ProviderProduct.id == tp.provider_product_id)
             ).first()
@@ -1246,14 +1255,42 @@ def get_menu(
                     # Construct path to provider image
                     image_filename = f"providers/{provider.token}/products/{provider_product.image_filename}"
         
-        products_list.append({
+        # Build product data with detailed wine information
+        product_data = {
             "id": tp.id,
             "name": tp.name,
             "price_cents": tp.price_cents,
             "image_filename": image_filename,
             "tenant_id": tp.tenant_id,
             "ingredients": tp.ingredients,
-        })
+        }
+        
+        # Add catalog description
+        if catalog_item and catalog_item.description:
+            product_data["description"] = catalog_item.description
+        
+        # Add detailed wine information from provider product
+        if provider_product:
+            if provider_product.detailed_description:
+                product_data["detailed_description"] = provider_product.detailed_description
+            if provider_product.country:
+                product_data["country"] = provider_product.country
+            if provider_product.region:
+                product_data["region"] = provider_product.region
+            if provider_product.wine_style:
+                product_data["wine_style"] = provider_product.wine_style
+            if provider_product.vintage:
+                product_data["vintage"] = provider_product.vintage
+            if provider_product.winery:
+                product_data["winery"] = provider_product.winery
+            if provider_product.grape_variety:
+                product_data["grape_variety"] = provider_product.grape_variety
+            if provider_product.aromas:
+                product_data["aromas"] = provider_product.aromas
+            if provider_product.elaboration:
+                product_data["elaboration"] = provider_product.elaboration
+        
+        products_list.append(product_data)
     
     # Add legacy Products (for backward compatibility)
     for p in legacy_products:

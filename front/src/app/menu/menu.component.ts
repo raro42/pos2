@@ -123,6 +123,55 @@ interface PlacedOrder {
                         <h3>{{ product.name }}</h3>
                         <span class="product-price">{{ formatPrice(product.price_cents) }}</span>
                       </div>
+                      
+                      <!-- Origin (Country/Region) -->
+                      @if (product.country || product.region) {
+                        <div class="product-origin">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                          </svg>
+                          <span>{{ product.country }}{{ product.country && product.region ? ', ' : '' }}{{ product.region }}</span>
+                        </div>
+                      }
+                      
+                      <!-- Wine Details (Style, Vintage, Winery, Grape Variety) -->
+                      @if (product.wine_style || product.vintage || product.winery || product.grape_variety) {
+                        <div class="wine-details">
+                          @if (product.wine_style) {
+                            <span class="wine-badge">{{ product.wine_style }}</span>
+                          }
+                          @if (product.vintage) {
+                            <span class="wine-badge">Vintage {{ product.vintage }}</span>
+                          }
+                          @if (product.winery) {
+                            <span class="wine-badge">{{ product.winery }}</span>
+                          }
+                          @if (product.grape_variety) {
+                            <span class="wine-badge">{{ product.grape_variety }}</span>
+                          }
+                        </div>
+                      }
+                      
+                      <!-- Description -->
+                      @if (product.detailed_description || product.description) {
+                        <p class="product-description">{{ product.detailed_description || product.description }}</p>
+                      }
+                      
+                      <!-- Aromas -->
+                      @if (product.aromas) {
+                        <div class="product-aromas">
+                          <strong>Aromas:</strong> {{ product.aromas }}
+                        </div>
+                      }
+                      
+                      <!-- Elaboration -->
+                      @if (product.elaboration) {
+                        <div class="product-elaboration">
+                          <strong>Elaboration:</strong> {{ product.elaboration }}
+                        </div>
+                      }
+                      
                       @if (product.ingredients) {
                         <button class="ingredients-toggle" (click)="toggleIngredients(product.id!); $event.stopPropagation()">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -441,6 +490,61 @@ interface PlacedOrder {
       font-size: 1rem;
       font-weight: 700;
       color: var(--color-primary);
+    }
+
+    .product-origin {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+
+    .product-origin svg {
+      flex-shrink: 0;
+      color: var(--color-text-muted);
+    }
+
+    .wine-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .wine-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .product-description {
+      font-size: 0.875rem;
+      color: var(--color-text);
+      line-height: 1.5;
+      margin: 8px 0;
+    }
+
+    .product-aromas,
+    .product-elaboration {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .product-aromas strong,
+    .product-elaboration strong {
+      color: var(--color-text);
+      font-weight: 600;
     }
 
     .ingredients-toggle {
