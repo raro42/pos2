@@ -128,8 +128,14 @@ def get_category_name(category_id: str, filter_data: dict[str, Any] | None = Non
     return category_map.get(cat_id, "Wine")
 
 
-def parse_wine_data(api_data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Parse API response and extract wine data."""
+def parse_wine_data(api_data: dict[str, Any], fetch_details: bool = False) -> list[dict[str, Any]]:
+    """
+    Parse API response and extract wine data.
+    
+    Args:
+        api_data: API response data
+        fetch_details: If True, fetch detailed descriptions from detail pages (slower)
+    """
     wines = []
     
     # The API returns data in the "data" key
@@ -243,7 +249,25 @@ def parse_wine_data(api_data: dict[str, Any]) -> list[dict[str, Any]]:
         
         # Extract description (this is the short description from search API)
         description = product.get("description") or ""
-        detailed_description = description  # For now, use same description (can be enhanced with detail page scraping)
+        detailed_description = None
+        
+        # Initialize aromas and elaboration (will be set from detail page if available)
+        aromas = None
+        elaboration = None
+        
+        # Get item_id for detail page access
+        item_id = str(product.get("idProductMenu") or product.get("id") or "")
+        
+        # Fetch detailed description from detail page if requested
+        if fetch_details and item_id:
+            detail_data = fetch_wine_detail_page(str(product.get("idProduct") or ""), item_id)
+            if detail_data:
+                if detail_data.get("detailed_description"):
+                    detailed_description = detail_data["detailed_description"]
+                if detail_data.get("aromas"):
+                    aromas = detail_data.get("aromas")
+                if detail_data.get("elaboration"):
+                    elaboration = detail_data.get("elaboration")
         
         # Extract vintage (anada)
         vintage = None
@@ -273,16 +297,12 @@ def parse_wine_data(api_data: dict[str, Any]) -> list[dict[str, Any]]:
                 winery = winery_tags[0].title()
                 brand = winery
         
-        # Extract aromas from tags (fruits, flavors)
-        aromas = None
-        if tags:
+        # Extract aromas from tags (fruits, flavors) - only if not already set from detail page
+        if not aromas and tags:
             aroma_tags = [t for t in tags if isinstance(t, str) and any(a in t.lower() for a in 
                          ["ciruela", "frambuesa", "fresa", "cereza", "manzana", "limón", "miel", "vainilla", "roble"])]
             if aroma_tags:
                 aromas = ", ".join(aroma_tags[:5])  # Join up to 5 aromas
-        
-        # Elaboration - not directly in API, but can infer from tags or leave for detail page scraping
-        elaboration = None
         
         wine_data = {
             "external_id": wine_id,
@@ -309,6 +329,108 @@ def parse_wine_data(api_data: dict[str, Any]) -> list[dict[str, Any]]:
         wines.append(wine_data)
     
     return wines
+
+
+def fetch_wine_detail_page(product_id: str, item_id: str | None = None) -> dict[str, Any] | None:
+    """
+    Fetch detailed information from wine detail page.
+    
+    Args:
+        product_id: Product ID from API (idProduct)
+        item_id: Item ID from API (idProductMenu) - used for URL
+        
+    Returns:
+        Dictionary with detailed information or None if failed
+    """
+    try:
+        # Construct detail page URL
+        if item_id:
+            detail_url = f"{API_BASE_URL}/rest-gustazo/item/{item_id}"
+        else:
+            # Fallback: try to construct from product_id
+            detail_url = f"{API_BASE_URL}/rest-gustazo/item/{product_id}"
+        
+        headers = {
+            "user-agent": "Mozilla/5.0",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+        
+        response = requests.get(detail_url, headers=headers, cookies=COOKIES, timeout=15)
+        response.raise_for_status()
+        
+        html = response.text
+        
+        # Extract detailed description
+        detailed_description = None
+        # Look for description in <div class="descripcion"> or similar
+        import re
+        desc_patterns = [
+            r'<div[^>]*class="[^"]*descripcion[^"]*"[^>]*>.*?<p[^>]*>(.*?)</p>',
+            r'Descripción</div>.*?<div[^>]*class="[^"]*descripcion[^"]*"[^>]*>.*?<p[^>]*>(.*?)</p>',
+            r'<p[^>]*>([^<]*Un vino[^<]*(?:<[^>]*>[^<]*</[^>]*>[^<]*)*)</p>',
+        ]
+        
+        for pattern in desc_patterns:
+            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                desc_text = match.group(1)
+                # Clean HTML tags but preserve structure
+                desc_clean = re.sub(r'<br[^>]*>', '\n', desc_text)
+                desc_clean = re.sub(r'</p>\s*<p[^>]*>', '\n\n', desc_clean)
+                desc_clean = re.sub(r'<[^>]+>', '', desc_clean)
+                desc_clean = re.sub(r'\s+', ' ', desc_clean).strip()
+                # Only use if it's longer than 100 chars (to avoid short snippets)
+                if len(desc_clean) > 100:
+                    detailed_description = desc_clean
+                    break
+        
+        # Extract aromas - look for "text-aroma" divs which contain the aroma names
+        aromas = None
+        # Pattern: look for section after "Prueba a encontrar estos aromas"
+        aromas_section = re.search(r'Prueba a encontrar estos aromas(.*?)(?:Elaboración|</section>|</div>)', html, re.IGNORECASE | re.DOTALL)
+        
+        if aromas_section:
+            aromas_html = aromas_section.group(1)
+            # Extract text from divs with text-aroma class - pattern: <div class="text-aroma">...<div>Ciruela</div>...
+            aroma_items = re.findall(r'<div[^>]*class="[^"]*text-aroma[^"]*"[^>]*>.*?<div[^>]*>([^<]+)</div>', aromas_html, re.IGNORECASE | re.DOTALL)
+            if not aroma_items:
+                # Fallback: look for any div content in the aromas section
+                all_text = re.findall(r'<div[^>]*>([^<]+)</div>', aromas_html)
+                # Filter for meaningful aroma names (2-20 chars, not common HTML/class names)
+                exclude_words = ['prueba', 'encontrar', 'estos', 'aromas', 'text-aroma', 'pt-2', 'text-center', 'mb-2', 'col-auto', 'border', 'img-fluid', 'd-flex', 'justify-content', 'align-items']
+                aroma_items = [t.strip() for t in all_text 
+                              if t.strip() and 2 < len(t.strip()) < 20 
+                              and t.strip().lower() not in exclude_words
+                              and not t.strip().startswith('http')
+                              and not t.strip().startswith('style')]
+            # Filter out empty, very short items, and common words
+            exclude_words = ['prueba', 'encontrar', 'estos', 'aromas', 'text-aroma', 'pt-2', 'text-center', 'mb-2']
+            aroma_items = [a.strip() for a in aroma_items 
+                          if a.strip() and len(a.strip()) > 2 
+                          and a.strip().lower() not in exclude_words]
+            if aroma_items:
+                aromas = ", ".join(aroma_items[:10])  # Join up to 10 aromas
+        
+        # Extract elaboration
+        elaboration = None
+        elaboracion_section = re.search(r'Elaboración[^<]*</[^>]*>.*?<div[^>]*>(.*?)</div>', html, re.IGNORECASE | re.DOTALL)
+        if elaboracion_section:
+            elabor_text = elaboracion_section.group(1)
+            elaboration = re.sub(r'<[^>]+>', '', elabor_text).strip()
+        
+        result = {}
+        if detailed_description:
+            result["detailed_description"] = detailed_description
+        if aromas:
+            result["aromas"] = aromas
+        if elaboration:
+            result["elaboration"] = elaboration
+        
+        return result if result else None
+        
+    except Exception as e:
+        print(f"  Warning: Could not fetch detail page for {product_id}: {e}")
+        return None
 
 
 def download_and_store_image(
@@ -614,7 +736,7 @@ def import_wines(clear_existing: bool = False) -> dict[str, int]:
             while page <= max_pages:
                 try:
                     api_data = fetch_wines_from_api(page)
-                    wines = parse_wine_data(api_data)
+                    wines = parse_wine_data(api_data, fetch_details=True)
                     
                     if not wines:
                         break
