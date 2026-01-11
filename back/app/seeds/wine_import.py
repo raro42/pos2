@@ -892,6 +892,9 @@ def import_wines(clear_existing: bool = False) -> dict[str, int]:
                 if wine_data.get("elaboration") and existing.elaboration != wine_data["elaboration"]:
                     existing.elaboration = wine_data["elaboration"]
                     updated = True
+                if wine_data.get("wine_category_id") and existing.wine_category_id != wine_data["wine_category_id"]:
+                    existing.wine_category_id = wine_data["wine_category_id"]
+                    updated = True
                 
                 # Update catalog link if needed
                 if existing.catalog_id != catalog_item.id:
@@ -916,6 +919,7 @@ def import_wines(clear_existing: bool = False) -> dict[str, int]:
                     country=wine_data.get("country"),
                     region=wine_data.get("region"),
                     grape_variety=wine_data.get("grape_variety"),
+                    wine_category_id=wine_data.get("wine_category_id"),  # Store API category ID
                     detailed_description=wine_data.get("detailed_description"),
                     wine_style=wine_data.get("wine_style"),
                     vintage=wine_data.get("vintage"),
