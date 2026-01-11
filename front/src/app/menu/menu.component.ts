@@ -1074,21 +1074,27 @@ export class MenuComponent implements OnInit {
     }
 
     // Extract subcategories from products in the selected category
+    // Use wine_type (from API/description) as primary source, fallback to subcategory
     const wineTypes = new Set<string>();
     const hasByGlass = new Set<string>(); // Track which wine types have "by glass" option
     
     this.products().forEach((product: Product) => {
-      if (product.category === category && product.subcategory) {
-        const subcat = product.subcategory;
+      if (product.category === category) {
+        // Use wine_type if available (more reliable), otherwise extract from subcategory
+        let wineType = product.wine_type;
         
-        // Extract wine type (first part before " - ")
-        let wineType = subcat;
-        if (subcat.includes(' - ')) {
-          wineType = subcat.split(' - ')[0].trim();
+        if (!wineType && product.subcategory) {
+          // Fallback: extract from subcategory
+          const subcat = product.subcategory;
+          if (subcat.includes(' - ')) {
+            wineType = subcat.split(' - ')[0].trim();
+          } else {
+            wineType = subcat;
+          }
         }
         
-        // Check if it contains "Wine by Glass"
-        const isByGlass = subcat.includes('Wine by Glass');
+        // Check if it contains "Wine by Glass" in subcategory
+        const isByGlass = product.subcategory && product.subcategory.includes('Wine by Glass');
         
         // Add wine type if it's a valid wine type
         if (wineType && (
@@ -1140,17 +1146,22 @@ export class MenuComponent implements OnInit {
         // Filter for products with "Wine by Glass" in subcategory
         filtered = filtered.filter(p => p.subcategory && p.subcategory.includes('Wine by Glass'));
       } else {
-        // Filter for products with matching wine type (must start with the wine type)
+        // Filter by wine_type (most reliable) or fallback to subcategory
         filtered = filtered.filter(p => {
-          if (!p.subcategory) return false;
-          // Extract wine type from subcategory
-          const subcat = p.subcategory;
-          let wineType = subcat;
-          if (subcat.includes(' - ')) {
-            wineType = subcat.split(' - ')[0].trim();
+          // Use wine_type if available (corrected from description/API)
+          if (p.wine_type) {
+            return p.wine_type === subcategory;
           }
-          // Must match exactly
-          return wineType === subcategory;
+          // Fallback: extract from subcategory
+          if (p.subcategory) {
+            const subcat = p.subcategory;
+            let wineType = subcat;
+            if (subcat.includes(' - ')) {
+              wineType = subcat.split(' - ')[0].trim();
+            }
+            return wineType === subcategory;
+          }
+          return false;
         });
       }
     }
