@@ -289,6 +289,17 @@ def download_and_store_image(
     if not image_url:
         return None
     
+    # Get provider to access token first
+    with Session(engine) as session:
+        provider = session.exec(select(Provider).where(Provider.id == provider_id)).first()
+        if not provider:
+            print(f"  Error: Provider {provider_id} not found")
+            return None
+        if not provider.token:
+            print(f"  Error: Provider {provider_id} has no token")
+            return None
+        provider_token = provider.token
+    
     try:
         # Download image
         response = requests.get(image_url, timeout=30, stream=True)
@@ -336,15 +347,6 @@ def download_and_store_image(
                 ext = ".webp"
             else:
                 ext = ".jpg"
-        
-        # Get provider to access token
-        from app.models import Provider
-        with Session(engine) as session:
-            provider = session.exec(select(Provider).where(Provider.id == provider_id)).first()
-            if not provider:
-                print(f"  Error: Provider {provider_id} not found")
-                return None
-            provider_token = provider.token
         
         # Create provider upload directory using token instead of ID
         provider_dir = UPLOADS_DIR / "providers" / provider_token / "products"
