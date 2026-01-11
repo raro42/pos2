@@ -1269,34 +1269,39 @@ def get_menu(
         if catalog_item and catalog_item.description:
             product_data["description"] = catalog_item.description
         
-        # Extract wine type - prioritize description over subcategory (description is more reliable)
+        # Extract wine type - use API category ID first (most reliable from provider)
         wine_type = None
-        description_text = ""
         
-        # Get description text first
-        if provider_product and provider_product.detailed_description:
-            description_text = provider_product.detailed_description.lower()
-        elif catalog_item and catalog_item.description:
-            description_text = catalog_item.description.lower()
+        # First, use the category ID from provider product (direct from API)
+        if provider_product and provider_product.wine_category_id:
+            from app.seeds.wine_import import get_category_name
+            wine_type = get_category_name(provider_product.wine_category_id, None)
+            # If we got a valid wine type, use it
+            if wine_type and wine_type != "Wine":
+                product_data["wine_type"] = wine_type
+            else:
+                wine_type = None  # Reset if not valid
         
-        # First, try to infer from description (most reliable source)
-        if description_text:
-            # Check for explicit wine type mentions in description
-            if "vino blanco" in description_text:
-                wine_type = "White Wine"
-            elif "vino tinto" in description_text:
-                wine_type = "Red Wine"
-            elif "espumoso" in description_text or "cava" in description_text:
-                wine_type = "Sparkling Wine"
-            elif "rosado" in description_text or "rosé" in description_text:
-                wine_type = "Rosé Wine"
-            # Fallback: check for standalone words (but be more careful)
-            elif " blanco " in description_text or description_text.startswith("blanco ") or description_text.endswith(" blanco"):
-                wine_type = "White Wine"
-            elif " tinto " in description_text or description_text.startswith("tinto ") or description_text.endswith(" tinto"):
-                wine_type = "Red Wine"
+        # If no wine type from category ID, try description (fallback)
+        if not wine_type:
+            description_text = ""
+            if provider_product and provider_product.detailed_description:
+                description_text = provider_product.detailed_description.lower()
+            elif catalog_item and catalog_item.description:
+                description_text = catalog_item.description.lower()
+            
+            if description_text:
+                # Check for explicit wine type mentions in description
+                if "vino blanco" in description_text:
+                    wine_type = "White Wine"
+                elif "vino tinto" in description_text:
+                    wine_type = "Red Wine"
+                elif "espumoso" in description_text or "cava" in description_text:
+                    wine_type = "Sparkling Wine"
+                elif "rosado" in description_text or "rosé" in description_text:
+                    wine_type = "Rosé Wine"
         
-        # If no wine type from description, try subcategory
+        # If still no wine type, try subcategory as last resort
         if not wine_type and catalog_item and catalog_item.subcategory:
             # Subcategory format: "Red Wine - D.O. Empordà - Wine by Glass"
             # Extract first part before first " - "

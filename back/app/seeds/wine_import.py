@@ -319,6 +319,11 @@ def parse_wine_data(api_data: dict[str, Any], fetch_details: bool = False) -> li
         # Store item_id for later detail page access
         item_id = str(product.get("idProductMenu") or product.get("id") or "")
         
+        # Store category ID from API (most reliable source for wine type)
+        wine_category_id = None
+        if categories and isinstance(categories, list) and len(categories) > 0:
+            wine_category_id = str(categories[0]).strip("'\"")
+        
         wine_data = {
             "external_id": wine_id,
             "item_id": item_id,  # Store for detail page access
@@ -328,6 +333,7 @@ def parse_wine_data(api_data: dict[str, Any], fetch_details: bool = False) -> li
             "image_product_number": product_image_number,  # Store for downloading
             "category": category,
             "subcategory": subcategory,
+            "wine_category_id": wine_category_id,  # Store API category ID
             "country": country,
             "region": region,
             "grape_variety": grape_variety,

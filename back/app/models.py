@@ -118,6 +118,7 @@ class ProviderProduct(SQLModel, table=True):
     grape_variety: str | None = None  # For wines
     volume_ml: int | None = None  # For beverages
     unit: str | None = None  # e.g., "bottle", "case", "kg"
+    wine_category_id: str | None = None  # Category ID from provider API (e.g., "18010" for Red Wine, "18011" for White Wine)
     # Detailed wine information
     detailed_description: str | None = None  # Full detailed description from provider
     wine_style: str | None = None  # e.g., "Afrutados", "Crianza", etc.
