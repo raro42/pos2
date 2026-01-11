@@ -142,6 +142,8 @@ import { CommonModule } from '@angular/common';
                   <tr>
                     <th style="width:60px"></th>
                     <th>Name</th>
+                    <th>Category</th>
+                    <th>Subcategory</th>
                     <th>Price</th>
                     <th></th>
                   </tr>
@@ -165,6 +167,45 @@ import { CommonModule } from '@angular/common';
                         <div>{{ product.name }}</div>
                         @if (product.ingredients) {
                           <small class="ingredients">{{ product.ingredients }}</small>
+                        }
+                      </td>
+                      <td>
+                        @if (editingCategoryProductId() === product.id) {
+                          <select 
+                            class="inline-select" 
+                            [(ngModel)]="editingCategory" 
+                            (change)="onCategoryChangeInline()"
+                            (blur)="saveCategoryInline(product)"
+                            (keydown.escape)="cancelCategoryEdit()"
+                            [attr.data-product-id]="product.id">
+                            <option value="">None</option>
+                            @for (category of getCategoryKeys(); track category) {
+                              <option [value]="category">{{ category }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="category-cell" (click)="startCategoryEdit(product, $event)">
+                            {{ product.category || '—' }}
+                          </span>
+                        }
+                      </td>
+                      <td>
+                        @if (editingCategoryProductId() === product.id) {
+                          <select 
+                            class="inline-select" 
+                            [(ngModel)]="editingSubcategory"
+                            [disabled]="!editingCategory || getSubcategoriesForCategory(editingCategory).length === 0"
+                            (blur)="saveCategoryInline(product)"
+                            (keydown.escape)="cancelCategoryEdit()">
+                            <option value="">None</option>
+                            @for (subcat of getSubcategoriesForCategory(editingCategory); track subcat) {
+                              <option [value]="subcat">{{ subcat }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="category-cell" (click)="startCategoryEdit(product, $event)">
+                            {{ product.subcategory || '—' }}
+                          </span>
                         }
                       </td>
                       <td class="price">{{ formatPrice(product.price_cents) }}</td>
@@ -390,6 +431,28 @@ import { CommonModule } from '@angular/common';
     .file-size { font-size: 0.6875rem; color: var(--color-text-muted); text-align: center; }
     .pending-file-name { font-size: 0.8125rem; color: var(--color-text-muted); font-style: italic; }
     .ingredients { color: var(--color-text-muted); font-size: 0.8125rem; display: block; margin-top: 2px; }
+    
+    .category-cell {
+      cursor: pointer;
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-sm);
+      transition: background 0.15s ease;
+      display: inline-block;
+      min-width: 60px;
+      &:hover { background: var(--color-bg); }
+    }
+    
+    .inline-select {
+      width: 100%;
+      padding: var(--space-2);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      background: var(--color-surface);
+      color: var(--color-text);
+      &:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-light); }
+      &:disabled { opacity: 0.6; cursor: not-allowed; }
+    }
 
     .empty-state {
       text-align: center;
@@ -499,6 +562,9 @@ export class ProductsComponent implements OnInit {
   currency = signal<string>('$');
   categories = signal<Record<string, string[]>>({});
   availableSubcategories = signal<string[]>([]);
+  editingCategoryProductId = signal<number | null>(null);
+  editingCategory = signal<string>('');
+  editingSubcategory = signal<string>('');
 
   ngOnInit() {
     this.loadTenantSettings();
@@ -521,6 +587,10 @@ export class ProductsComponent implements OnInit {
     return Object.keys(this.categories());
   }
 
+  getSubcategoriesForCategory(category: string): string[] {
+    return this.categories()[category] || [];
+  }
+
   onCategoryChange() {
     // Update available subcategories when category changes
     const selectedCategory = this.formData.category;
@@ -530,6 +600,77 @@ export class ProductsComponent implements OnInit {
       this.availableSubcategories.set([]);
       this.formData.subcategory = '';
     }
+  }
+
+  onCategoryChangeInline() {
+    // Update subcategory when category changes inline
+    const selectedCategory = this.editingCategory();
+    if (selectedCategory && this.categories()[selectedCategory]) {
+      // Keep subcategory if it's still valid, otherwise clear it
+      const validSubcats = this.categories()[selectedCategory];
+      if (this.editingSubcategory() && !validSubcats.includes(this.editingSubcategory())) {
+        this.editingSubcategory.set('');
+      }
+    } else {
+      this.editingSubcategory.set('');
+    }
+  }
+
+  startCategoryEdit(product: Product, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!product.id) return;
+    // Don't start editing if already editing this product or another product
+    if (this.editingCategoryProductId() === product.id) return;
+    if (this.editingCategoryProductId() !== null) {
+      // Save current edit first
+      const currentProduct = this.products().find(p => p.id === this.editingCategoryProductId());
+      if (currentProduct) {
+        this.saveCategoryInline(currentProduct);
+      }
+    }
+    this.editingCategoryProductId.set(product.id);
+    this.editingCategory.set(product.category || '');
+    this.editingSubcategory.set(product.subcategory || '');
+    // Focus the category select after a brief delay
+    setTimeout(() => {
+      const select = document.querySelector(`[data-product-id="${product.id}"]`) as HTMLSelectElement;
+      if (select) select.focus();
+    }, 10);
+  }
+
+  cancelCategoryEdit() {
+    this.editingCategoryProductId.set(null);
+    this.editingCategory.set('');
+    this.editingSubcategory.set('');
+  }
+
+  saveCategoryInline(product: Product) {
+    if (!product.id || this.editingCategoryProductId() !== product.id) return;
+    
+    const category = this.editingCategory() || undefined;
+    const subcategory = this.editingSubcategory() || undefined;
+    
+    // Only update if changed
+    if (category === product.category && subcategory === product.subcategory) {
+      this.cancelCategoryEdit();
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.updateProduct(product.id, { category, subcategory }).subscribe({
+      next: (updated) => {
+        this.products.update(list => list.map(p => p.id === updated.id ? updated : p));
+        this.cancelCategoryEdit();
+        this.saving.set(false);
+      },
+      error: (err) => {
+        this.error.set(err.error?.detail || 'Failed to update category');
+        this.cancelCategoryEdit();
+        this.saving.set(false);
+      }
+    });
   }
 
   loadTenantSettings() {
@@ -562,6 +703,10 @@ export class ProductsComponent implements OnInit {
   }
 
   startEdit(product: Product) {
+    // Cancel any inline category editing
+    if (this.editingCategoryProductId() === product.id) {
+      this.cancelCategoryEdit();
+    }
     this.editingProduct.set(product);
     this.formData = { 
       name: product.name, 
