@@ -161,16 +161,113 @@ import { SidebarComponent } from '../shared/sidebar.component';
           <!-- Opening Hours -->
           <div class="form-section">
             <h2>Opening Hours</h2>
-            <p class="section-hint">Enter opening hours as JSON. Example: {{ openingHoursExample }}</p>
-            <div class="form-group">
-              <label for="opening_hours">Opening Hours (JSON)</label>
-              <textarea
-                id="opening_hours"
-                [(ngModel)]="formData.opening_hours"
-                name="opening_hours"
-                rows="8"
-                [placeholder]="openingHoursPlaceholder"
-              ></textarea>
+            <p class="section-hint">Set your business hours for each day of the week. You can add a break between shifts.</p>
+            <div class="opening-hours-container">
+              @for (day of daysOfWeek; track day.key) {
+                <div class="opening-hours-row">
+                  <div class="day-label">
+                    <label class="checkbox-label">
+                      <input
+                        type="checkbox"
+                        [checked]="!openingHours[day.key]?.closed"
+                        (change)="toggleDayClosed(day.key, $event)"
+                      />
+                      <span>{{ day.label }}</span>
+                    </label>
+                  </div>
+                  @if (!openingHours[day.key]?.closed) {
+                    <div class="time-inputs-wrapper">
+                      @if (!openingHours[day.key]?.hasBreak) {
+                        <div class="time-inputs">
+                          <div class="time-group">
+                            <label [for]="'open-' + day.key">Open</label>
+                            <input
+                              type="time"
+                              [id]="'open-' + day.key"
+                              [value]="openingHours[day.key]?.open || '09:00'"
+                              (change)="updateOpeningHours(day.key, 'open', $event)"
+                            />
+                          </div>
+                          <span class="time-separator">to</span>
+                          <div class="time-group">
+                            <label [for]="'close-' + day.key">Close</label>
+                            <input
+                              type="time"
+                              [id]="'close-' + day.key"
+                              [value]="openingHours[day.key]?.close || '22:00'"
+                              (change)="updateOpeningHours(day.key, 'close', $event)"
+                            />
+                          </div>
+                        </div>
+                      }
+                      <div class="break-toggle">
+                        <label class="checkbox-label small">
+                          <input
+                            type="checkbox"
+                            [checked]="openingHours[day.key]?.hasBreak || false"
+                            (change)="toggleBreak(day.key, $event)"
+                          />
+                          <span>Has break</span>
+                        </label>
+                      </div>
+                      @if (openingHours[day.key]?.hasBreak) {
+                        <div class="break-shifts">
+                          <div class="shift-group">
+                            <div class="shift-label">Morning</div>
+                            <div class="time-inputs">
+                              <div class="time-group">
+                                <label [for]="'morning-open-' + day.key">Open</label>
+                                <input
+                                  type="time"
+                                  [id]="'morning-open-' + day.key"
+                                  [value]="openingHours[day.key]?.morningOpen || '09:00'"
+                                  (change)="updateOpeningHours(day.key, 'morningOpen', $event)"
+                                />
+                              </div>
+                              <span class="time-separator">to</span>
+                              <div class="time-group">
+                                <label [for]="'morning-close-' + day.key">Close</label>
+                                <input
+                                  type="time"
+                                  [id]="'morning-close-' + day.key"
+                                  [value]="openingHours[day.key]?.morningClose || '14:00'"
+                                  (change)="updateOpeningHours(day.key, 'morningClose', $event)"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div class="shift-group">
+                            <div class="shift-label">Evening</div>
+                            <div class="time-inputs">
+                              <div class="time-group">
+                                <label [for]="'evening-open-' + day.key">Open</label>
+                                <input
+                                  type="time"
+                                  [id]="'evening-open-' + day.key"
+                                  [value]="openingHours[day.key]?.eveningOpen || '17:00'"
+                                  (change)="updateOpeningHours(day.key, 'eveningOpen', $event)"
+                                />
+                              </div>
+                              <span class="time-separator">to</span>
+                              <div class="time-group">
+                                <label [for]="'evening-close-' + day.key">Close</label>
+                                <input
+                                  type="time"
+                                  [id]="'evening-close-' + day.key"
+                                  [value]="openingHours[day.key]?.eveningClose || '22:00'"
+                                  (change)="updateOpeningHours(day.key, 'eveningClose', $event)"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="closed-indicator">Closed</div>
+                  }
+                </div>
+              }
             </div>
           </div>
 
@@ -188,6 +285,28 @@ import { SidebarComponent } from '../shared/sidebar.component';
                 maxlength="10"
               />
               <p class="field-hint">Enter the currency symbol used for pricing (e.g., €, $, £, ¥)</p>
+            </div>
+            <div class="form-group">
+              <label for="stripe_publishable_key">Stripe Publishable Key</label>
+              <input
+                type="text"
+                id="stripe_publishable_key"
+                [(ngModel)]="formData.stripe_publishable_key"
+                name="stripe_publishable_key"
+                placeholder="pk_test_..."
+              />
+              <p class="field-hint">Your Stripe publishable key (starts with pk_test_ or pk_live_)</p>
+            </div>
+            <div class="form-group">
+              <label for="stripe_secret_key">Stripe Secret Key</label>
+              <input
+                type="password"
+                id="stripe_secret_key"
+                [(ngModel)]="formData.stripe_secret_key"
+                name="stripe_secret_key"
+                placeholder="sk_test_... or leave blank to keep current"
+              />
+              <p class="field-hint">Your Stripe secret key (starts with sk_test_ or sk_live_). Leave blank to keep current value.</p>
             </div>
             <div class="form-group">
               <label class="checkbox-label">
@@ -490,6 +609,183 @@ import { SidebarComponent } from '../shared/sidebar.component';
       border-radius: var(--radius-md);
       font-size: 0.875rem;
     }
+
+    .opening-hours-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .opening-hours-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-6);
+      padding: var(--space-5);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
+      &:hover {
+        background: var(--color-surface);
+        border-color: var(--color-primary);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      }
+    }
+
+    .day-label {
+      min-width: 140px;
+      flex-shrink: 0;
+      padding-top: var(--space-3);
+      padding-left: var(--space-2);
+
+      .checkbox-label {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+
+        input[type="checkbox"] {
+          margin: 0;
+          flex-shrink: 0;
+        }
+
+        span {
+          flex: 1;
+        }
+      }
+    }
+
+    .time-inputs-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      flex: 1;
+    }
+
+    .time-inputs {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .break-toggle {
+      margin-top: var(--space-1);
+      padding: var(--space-2) 0;
+
+      .checkbox-label.small {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--color-text);
+
+        input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          margin-right: var(--space-2);
+        }
+      }
+    }
+
+    .break-shifts {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      margin-top: var(--space-3);
+      padding: var(--space-5);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .shift-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .shift-label {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+      text-transform: capitalize;
+      letter-spacing: 0.01em;
+    }
+
+    .time-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 160px;
+
+      label {
+        font-size: 0.875rem;
+        color: var(--color-text-muted);
+        margin: 0;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+      }
+
+      input[type="time"] {
+        padding: var(--space-3) var(--space-4);
+        border: 2px solid var(--color-border);
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        color: var(--color-text);
+        background: white;
+        transition: all 0.2s ease;
+        width: 180px;
+        min-height: 44px;
+        font-weight: 500;
+        cursor: pointer;
+
+        &:hover {
+          border-color: var(--color-primary);
+          background: var(--color-bg);
+        }
+
+        &:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          background: white;
+          box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 59, 130, 246), 0.1);
+        }
+
+        &::-webkit-calendar-picker-indicator {
+          cursor: pointer;
+          opacity: 0.6;
+          padding: var(--space-2);
+          margin-left: var(--space-2);
+
+          &:hover {
+            opacity: 1;
+          }
+        }
+      }
+    }
+
+    .time-separator {
+      color: var(--color-text-muted);
+      font-size: 0.9375rem;
+      font-weight: 500;
+      margin-bottom: var(--space-5);
+      padding: 0 var(--space-1);
+      align-self: flex-end;
+      user-select: none;
+    }
+
+    .closed-indicator {
+      color: var(--color-text-muted);
+      font-style: italic;
+      padding: var(--space-3) 0;
+      flex: 1;
+      font-size: 0.9375rem;
+    }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -504,8 +800,26 @@ export class SettingsComponent implements OnInit {
   logoPreview = signal<string | null>(null);
   logoFile: File | null = null;
 
-  openingHoursExample = '{"monday": {"open": "09:00", "close": "22:00", "closed": false}}';
-  openingHoursPlaceholder = '{"monday": {"open": "09:00", "close": "22:00", "closed": false}, ...}';
+  daysOfWeek = [
+    { key: 'monday', label: 'Monday' },
+    { key: 'tuesday', label: 'Tuesday' },
+    { key: 'wednesday', label: 'Wednesday' },
+    { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' },
+    { key: 'saturday', label: 'Saturday' },
+    { key: 'sunday', label: 'Sunday' }
+  ];
+
+  openingHours: Record<string, { 
+    open: string; 
+    close: string; 
+    closed: boolean;
+    hasBreak?: boolean;
+    morningOpen?: string;
+    morningClose?: string;
+    eveningOpen?: string;
+    eveningClose?: string;
+  }> = {};
 
   formData: Partial<TenantSettings> = {
     name: '',
@@ -518,6 +832,8 @@ export class SettingsComponent implements OnInit {
     website: null,
     opening_hours: null,
     currency: null,
+    stripe_secret_key: null,
+    stripe_publishable_key: null,
     immediate_payment_required: false,
   };
 
@@ -541,8 +857,12 @@ export class SettingsComponent implements OnInit {
           website: settings.website || null,
           opening_hours: settings.opening_hours || null,
           currency: settings.currency || null,
+          // Don't load masked secret key - user must enter new one to update
+          stripe_secret_key: null,
+          stripe_publishable_key: settings.stripe_publishable_key || null,
           immediate_payment_required: settings.immediate_payment_required || false,
         };
+        this.parseOpeningHours(settings.opening_hours);
         this.loading.set(false);
       },
       error: (err) => {
@@ -551,6 +871,106 @@ export class SettingsComponent implements OnInit {
         console.error('Error loading settings:', err);
       }
     });
+  }
+
+  parseOpeningHours(jsonString: string | null | undefined) {
+    // Initialize all days with default values
+    this.daysOfWeek.forEach(day => {
+      this.openingHours[day.key] = {
+        open: '09:00',
+        close: '22:00',
+        closed: false,
+        hasBreak: false,
+        morningOpen: '09:00',
+        morningClose: '14:00',
+        eveningOpen: '17:00',
+        eveningClose: '22:00'
+      };
+    });
+
+    // Parse JSON if provided
+    if (jsonString) {
+      try {
+        const parsed = JSON.parse(jsonString);
+        this.daysOfWeek.forEach(day => {
+          if (parsed[day.key]) {
+            const dayData = parsed[day.key];
+            this.openingHours[day.key] = {
+              open: dayData.open || '09:00',
+              close: dayData.close || '22:00',
+              closed: dayData.closed === true,
+              hasBreak: dayData.hasBreak === true,
+              morningOpen: dayData.morningOpen || dayData.open || '09:00',
+              morningClose: dayData.morningClose || '14:00',
+              eveningOpen: dayData.eveningOpen || '17:00',
+              eveningClose: dayData.eveningClose || dayData.close || '22:00'
+            };
+          }
+        });
+      } catch (e) {
+        console.error('Error parsing opening hours JSON:', e);
+      }
+    }
+  }
+
+  toggleDayClosed(dayKey: string, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.openingHours[dayKey].closed = !checked;
+    this.serializeOpeningHours();
+  }
+
+  toggleBreak(dayKey: string, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.openingHours[dayKey].hasBreak = checked;
+    // If enabling break, initialize with default values if not set
+    if (checked) {
+      if (!this.openingHours[dayKey].morningOpen) {
+        this.openingHours[dayKey].morningOpen = this.openingHours[dayKey].open || '09:00';
+      }
+      if (!this.openingHours[dayKey].morningClose) {
+        this.openingHours[dayKey].morningClose = '14:00';
+      }
+      if (!this.openingHours[dayKey].eveningOpen) {
+        this.openingHours[dayKey].eveningOpen = '17:00';
+      }
+      if (!this.openingHours[dayKey].eveningClose) {
+        this.openingHours[dayKey].eveningClose = this.openingHours[dayKey].close || '22:00';
+      }
+    }
+    this.serializeOpeningHours();
+  }
+
+  updateOpeningHours(dayKey: string, field: 'open' | 'close' | 'morningOpen' | 'morningClose' | 'eveningOpen' | 'eveningClose', event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    (this.openingHours[dayKey] as any)[field] = value;
+    this.serializeOpeningHours();
+  }
+
+  serializeOpeningHours() {
+    const serialized: Record<string, any> = {};
+    this.daysOfWeek.forEach(day => {
+      const dayData = this.openingHours[day.key];
+      if (dayData.hasBreak) {
+        serialized[day.key] = {
+          closed: dayData.closed,
+          hasBreak: true,
+          morningOpen: dayData.morningOpen,
+          morningClose: dayData.morningClose,
+          eveningOpen: dayData.eveningOpen,
+          eveningClose: dayData.eveningClose,
+          // Keep open/close for backward compatibility
+          open: dayData.morningOpen,
+          close: dayData.eveningClose
+        };
+      } else {
+        serialized[day.key] = {
+          closed: dayData.closed,
+          open: dayData.open,
+          close: dayData.close
+        };
+      }
+    });
+    this.formData.opening_hours = JSON.stringify(serialized);
   }
 
   onLogoSelected(event: Event) {
@@ -621,7 +1041,18 @@ export class SettingsComponent implements OnInit {
   }
 
   private updateSettings() {
-    this.api.updateTenantSettings(this.formData).subscribe({
+    // Ensure opening hours are serialized before saving
+    this.serializeOpeningHours();
+    
+    // Prepare update data - only include stripe_secret_key if it was actually changed
+    const updateData = { ...this.formData };
+    
+    // If stripe_secret_key is empty string, don't send it (backend will keep existing value)
+    if (updateData.stripe_secret_key === '') {
+      delete updateData.stripe_secret_key;
+    }
+    
+    this.api.updateTenantSettings(updateData).subscribe({
       next: (updatedSettings) => {
         this.settings.set(updatedSettings);
         this.success.set('Settings saved successfully!');

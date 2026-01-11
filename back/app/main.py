@@ -27,8 +27,62 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configure Stripe
-stripe.api_key = settings.stripe_secret_key
+# Configure Stripe (global fallback - will be overridden by tenant-specific keys)
+# Note: stripe.api_key is set globally but individual API calls use api_key parameter
+stripe.api_key = settings.stripe_secret_key or ""
+
+def _get_stripe_currency_code(currency_symbol: str | None) -> str | None:
+    """
+    Map currency symbol to Stripe currency code.
+    Returns None if symbol is not recognized.
+    """
+    if not currency_symbol:
+        return None
+    
+    # Common currency symbol to Stripe currency code mapping
+    currency_map = {
+        '€': 'eur',
+        '$': 'usd',
+        '£': 'gbp',
+        '¥': 'jpy',
+        '₹': 'inr',
+        '₽': 'rub',
+        '₩': 'krw',
+        '₨': 'pkr',
+        '₦': 'ngn',
+        '₴': 'uah',
+        '₫': 'vnd',
+        '₪': 'ils',
+        '₡': 'crc',
+        '₱': 'php',
+        '₨': 'lkr',
+        '₦': 'ngn',
+        '₨': 'npr',
+        '₨': 'mru',
+        'MXN': 'mxn',
+        'mxn': 'mxn',
+        'EUR': 'eur',
+        'eur': 'eur',
+        'USD': 'usd',
+        'usd': 'usd',
+        'GBP': 'gbp',
+        'gbp': 'gbp',
+    }
+    
+    # Try direct lookup
+    if currency_symbol in currency_map:
+        return currency_map[currency_symbol]
+    
+    # Try case-insensitive lookup for 3-letter codes
+    currency_upper = currency_symbol.upper()
+    if currency_upper in currency_map:
+        return currency_map[currency_upper]
+    
+    # If it's already a 3-letter code, return as-is (Stripe will validate)
+    if len(currency_symbol) == 3:
+        return currency_symbol.lower()
+    
+    return None
 
 
 app = FastAPI(
@@ -337,6 +391,11 @@ def get_tenant_settings(
     tenant_dict["logo_size_bytes"] = logo_size
     tenant_dict["logo_size_formatted"] = format_file_size(logo_size)
     
+    # Don't expose full secret key - only show last 4 characters for verification
+    if tenant_dict.get("stripe_secret_key"):
+        secret_key = tenant_dict["stripe_secret_key"]
+        tenant_dict["stripe_secret_key"] = f"{secret_key[:7]}...{secret_key[-4:]}" if len(secret_key) > 11 else "***"
+    
     return tenant_dict
 
 
@@ -377,6 +436,14 @@ def update_tenant_settings(
         tenant.immediate_payment_required = tenant_update.immediate_payment_required
     if tenant_update.currency is not None:
         tenant.currency = tenant_update.currency.strip() if isinstance(tenant_update.currency, str) and tenant_update.currency.strip() else None
+    if tenant_update.stripe_secret_key is not None:
+        # Only update if a non-empty value is provided
+        # Empty string or None means don't change the existing value
+        if tenant_update.stripe_secret_key and isinstance(tenant_update.stripe_secret_key, str) and tenant_update.stripe_secret_key.strip():
+            tenant.stripe_secret_key = tenant_update.stripe_secret_key.strip()
+        # If empty/None, we don't update (keep existing value)
+    if tenant_update.stripe_publishable_key is not None:
+        tenant.stripe_publishable_key = tenant_update.stripe_publishable_key.strip() if isinstance(tenant_update.stripe_publishable_key, str) and tenant_update.stripe_publishable_key.strip() else None
     
     session.add(tenant)
     session.commit()
@@ -392,6 +459,11 @@ def update_tenant_settings(
     tenant_dict = tenant.model_dump()
     tenant_dict["logo_size_bytes"] = logo_size
     tenant_dict["logo_size_formatted"] = format_file_size(logo_size)
+    
+    # Don't expose full secret key - only show last 4 characters for verification
+    if tenant_dict.get("stripe_secret_key"):
+        secret_key = tenant_dict["stripe_secret_key"]
+        tenant_dict["stripe_secret_key"] = f"{secret_key[:7]}...{secret_key[-4:]}" if len(secret_key) > 11 else "***"
     
     return tenant_dict
 
@@ -683,6 +755,7 @@ def get_menu(
         "tenant_address": tenant.address if tenant else None,
         "tenant_website": tenant.website if tenant else None,
         "tenant_currency": tenant.currency if tenant else None,
+        "tenant_stripe_publishable_key": tenant.stripe_publishable_key if tenant else None,
         "products": [
             {
                 "id": p.id,
@@ -991,19 +1064,34 @@ def create_payment_intent(
     if total_cents <= 0:
         raise HTTPException(status_code=400, detail="Order has no items")
     
-    # Get tenant for description
+    # Get tenant for description, currency, and Stripe keys
     tenant = session.exec(select(models.Tenant).where(models.Tenant.id == order.tenant_id)).first()
     
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    # Use tenant-specific Stripe keys, fallback to global config
+    stripe_secret_key = tenant.stripe_secret_key or settings.stripe_secret_key
+    if not stripe_secret_key:
+        raise HTTPException(status_code=400, detail="Stripe not configured for this tenant")
+    
+    # Map currency symbol to Stripe currency code
+    # Default to settings.stripe_currency if tenant currency is not set
+    currency_symbol = tenant.currency if tenant.currency else None
+    stripe_currency = _get_stripe_currency_code(currency_symbol) or settings.stripe_currency
+    
     try:
+        # Use tenant-specific Stripe key
         intent = stripe.PaymentIntent.create(
             amount=total_cents,
-            currency=settings.stripe_currency,
+            currency=stripe_currency,
+            api_key=stripe_secret_key,
             metadata={
                 "order_id": str(order.id),
                 "table_id": str(table.id),
                 "tenant_id": str(order.tenant_id)
             },
-            description=f"Order #{order.id} at {tenant.name if tenant else 'POS'} - {table.name}"
+            description=f"Order #{order.id} at {tenant.name} - {table.name}"
         )
         
         return {
@@ -1038,9 +1126,19 @@ def confirm_payment(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
+    # Get tenant for Stripe keys
+    tenant = session.exec(select(models.Tenant).where(models.Tenant.id == order.tenant_id)).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    # Use tenant-specific Stripe keys, fallback to global config
+    stripe_secret_key = tenant.stripe_secret_key or settings.stripe_secret_key
+    if not stripe_secret_key:
+        raise HTTPException(status_code=400, detail="Stripe not configured for this tenant")
+    
     # Verify payment with Stripe
     try:
-        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id, api_key=stripe_secret_key)
         if intent.status != "succeeded":
             raise HTTPException(status_code=400, detail="Payment not completed")
         

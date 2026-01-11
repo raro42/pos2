@@ -39,6 +39,8 @@ class Tenant(SQLModel, table=True):
     opening_hours: str | None = None  # JSON string: {"monday": {"open": "09:00", "close": "22:00", "closed": false}, ...}
     immediate_payment_required: bool = Field(default=False)  # Require immediate payment for orders
     currency: str | None = Field(default=None)  # Currency symbol (€, $, £, etc.)
+    stripe_secret_key: str | None = Field(default=None)  # Stripe secret key for this tenant
+    stripe_publishable_key: str | None = Field(default=None)  # Stripe publishable key for this tenant
 
     users: list["User"] = Relationship(back_populates="tenant")
 
@@ -138,3 +140,5 @@ class TenantUpdate(SQLModel):
     opening_hours: str | None = None  # JSON string
     immediate_payment_required: bool | None = None
     currency: str | None = None
+    stripe_secret_key: str | None = None
+    stripe_publishable_key: str | None = None

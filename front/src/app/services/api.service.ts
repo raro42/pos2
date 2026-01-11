@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -68,6 +68,7 @@ export interface MenuResponse {
   tenant_address?: string | null;
   tenant_website?: string | null;
   tenant_currency?: string | null;
+  tenant_stripe_publishable_key?: string | null;
   products: Product[];
 }
 
@@ -85,6 +86,8 @@ export interface TenantSettings {
   opening_hours?: string | null;
   immediate_payment_required?: boolean;
   currency?: string | null;
+  stripe_secret_key?: string | null;
+  stripe_publishable_key?: string | null;
   logo_size_bytes?: number | null;
   logo_size_formatted?: string | null;
 }
@@ -260,8 +263,29 @@ export class ApiService {
     );
   }
 
+  private tenantStripeKey = signal<string | null>(null);
+
   getStripePublishableKey(): string {
-    return 'pk_test_51SjyYeC5b7HsHF8lLQmByWhJbPSroVBO2Q39x64b8QD4ixNlBolibtxXTHCk9ZFQe1vS0ZPXBYj4HvbNmFESLSsC00bd6v2sOS';
+    // Use tenant-specific key if available, otherwise fallback to environment
+    return this.tenantStripeKey() || environment.stripePublishableKey || '';
+  }
+
+  setTenantStripeKey(key: string | null): void {
+    this.tenantStripeKey.set(key);
+  }
+
+  loadTenantStripeKey(): void {
+    // Load tenant settings to get Stripe publishable key
+    this.getTenantSettings().subscribe({
+      next: (settings) => {
+        this.tenantStripeKey.set(settings.stripe_publishable_key || null);
+      },
+      error: (err) => {
+        console.error('Failed to load tenant Stripe key:', err);
+        // Fallback to environment key
+        this.tenantStripeKey.set(null);
+      }
+    });
   }
 
   // Tenant Settings

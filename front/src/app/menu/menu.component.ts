@@ -741,6 +741,11 @@ export class MenuComponent implements OnInit {
         this.tenantWebsite.set(data.tenant_website || null);
         this.tenantCurrency.set(data.tenant_currency || '$');
         
+        // Set tenant Stripe publishable key for payments
+        if (data.tenant_stripe_publishable_key) {
+          this.api.setTenantStripeKey(data.tenant_stripe_publishable_key);
+        }
+        
         this.loading.set(false);
         this.connectWebSocket();
       },

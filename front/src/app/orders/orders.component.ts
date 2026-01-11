@@ -66,7 +66,7 @@ ModuleRegistry.registerModules([
                         <div class="order-item">
                           <span class="item-qty">{{ item.quantity }}x</span>
                           <span class="item-name">{{ item.product_name }}</span>
-                          <span class="item-price">\${{ (item.price_cents * item.quantity / 100) | number:'1.2-2' }}</span>
+                          <span class="item-price">{{ formatPrice(item.price_cents * item.quantity) }}</span>
                         </div>
                       }
                     </div>
@@ -215,6 +215,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   orders = signal<Order[]>([]);
   loading = signal(true);
+  currency = signal<string>('$');
 
   // Computed signals for separating active and completed orders
   activeOrders = computed(() =>
@@ -240,70 +241,73 @@ export class OrdersComponent implements OnInit, OnDestroy {
     wrapperBorderRadius: 10,
   });
 
-  columnDefs: ColDef[] = [
-    {
-      field: 'id',
-      headerName: 'Order #',
-      width: 100,
-      valueFormatter: (params) => `#${params.value}`,
-    },
-    {
-      field: 'table_name',
-      headerName: 'Table',
-      width: 120,
-    },
-    {
-      field: 'items',
-      headerName: 'Items',
-      flex: 1,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        return params.value.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ');
+  get columnDefs(): ColDef[] {
+    const currencySymbol = this.currency();
+    return [
+      {
+        field: 'id',
+        headerName: 'Order #',
+        width: 100,
+        valueFormatter: (params) => `#${params.value}`,
       },
-    },
-    {
-      field: 'total_cents',
-      headerName: 'Total',
-      width: 110,
-      valueFormatter: (params) => {
-        if (params.value == null) return '';
-        return `$${(params.value / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      {
+        field: 'table_name',
+        headerName: 'Table',
+        width: 120,
       },
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 120,
-      cellRenderer: (params: ICellRendererParams) => {
-        const status = params.value;
-        const colorMap: Record<string, string> = {
-          completed: '#78716C',  // matches --color-text-muted
-          paid: '#16A34A',       // matches --color-success
-        };
-        const color = colorMap[status] || '#78716C';
-        return `<span style="
-          display: inline-block;
-          padding: 2px 10px;
-          border-radius: 12px;
-          font-size: 0.7rem;
-          font-weight: 600;
-          background: ${color}20;
-          color: ${color};
-          text-transform: capitalize;
-          line-height: 1.4;
-        ">${status}</span>`;
+      {
+        field: 'items',
+        headerName: 'Items',
+        flex: 1,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          return params.value.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ');
+        },
       },
-    },
-    {
-      field: 'created_at',
-      headerName: 'Date',
-      width: 160,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        return new Date(params.value).toLocaleString();
+      {
+        field: 'total_cents',
+        headerName: 'Total',
+        width: 110,
+        valueFormatter: (params) => {
+          if (params.value == null) return '';
+          return `${currencySymbol}${(params.value / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        },
+        },
+      {
+        field: 'status',
+        headerName: 'Status',
+        width: 120,
+        cellRenderer: (params: ICellRendererParams) => {
+          const status = params.value;
+          const colorMap: Record<string, string> = {
+            completed: '#78716C',  // matches --color-text-muted
+            paid: '#16A34A',       // matches --color-success
+          };
+          const color = colorMap[status] || '#78716C';
+          return `<span style="
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: ${color}20;
+            color: ${color};
+            text-transform: capitalize;
+            line-height: 1.4;
+          ">${status}</span>`;
+        },
       },
-    },
-  ];
+      {
+        field: 'created_at',
+        headerName: 'Date',
+        width: 160,
+        valueFormatter: (params) => {
+          if (!params.value) return '';
+          return new Date(params.value).toLocaleString();
+        },
+      },
+    ];
+  }
 
   defaultColDef: ColDef = {
     sortable: true,
@@ -312,6 +316,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit() {
+    this.loadTenantSettings();
     this.loadOrders();
     this.api.connectWebSocket();
     this.wsSub = this.api.orderUpdates$.subscribe(() => this.loadOrders());
@@ -339,6 +344,23 @@ export class OrdersComponent implements OnInit, OnDestroy {
       completed: 'Completed'
     };
     return labels[status] || status;
+  }
+
+  loadTenantSettings() {
+    this.api.getTenantSettings().subscribe({
+      next: (settings) => {
+        this.currency.set(settings.currency || '$');
+      },
+      error: (err) => {
+        console.error('Failed to load tenant settings:', err);
+        // Default to $ if settings can't be loaded
+      }
+    });
+  }
+
+  formatPrice(priceCents: number): string {
+    const currencySymbol = this.currency();
+    return `${currencySymbol}${(priceCents / 100).toFixed(2)}`;
   }
 
   formatOrderTime(dateString: string): string {
