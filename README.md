@@ -120,6 +120,50 @@ Browser → Frontend (Angular) → Backend (FastAPI) → PostgreSQL
 
 ## Development
 
+### Database Migrations
+
+The project uses a versioned migration system to manage database schema changes. Migrations are automatically applied on application startup.
+
+**Migration files** are located in `back/migrations/` and follow the naming pattern:
+```
+{version}_{description}.sql
+```
+
+Example: `001_add_tenant_fields.sql`, `002_add_user_preferences.sql`
+
+**Running migrations manually:**
+```bash
+# Check for pending migrations (dry run)
+docker compose exec back python -m app.migrate --check
+
+# Apply pending migrations
+docker compose exec back python -m app.migrate
+```
+
+**Creating a new migration:**
+
+**Recommended: Use timestamp-based naming** (prevents conflicts in concurrent development):
+```bash
+# Use the helper script
+./back/create_migration.sh add_user_preferences
+# Creates: migrations/20260111143000_add_user_preferences.sql
+```
+
+**Alternative: Sequential numbering** (backward compatible):
+1. Create a new SQL file: `back/migrations/XXX_description.sql` (where XXX is the next version number)
+2. Write your SQL statements (CREATE TABLE, ALTER TABLE, etc.)
+3. Test locally before committing
+
+⚠️ **Note**: Sequential numbers can conflict if two developers work simultaneously. Timestamps eliminate this issue.
+
+**Important:**
+- Migrations are applied automatically on startup
+- Never modify existing migration files - create a new migration to fix issues
+- The system tracks applied migrations in the `schema_version` table
+- Use `IF NOT EXISTS` clauses where possible for idempotency
+
+See `back/migrations/README.md` for more details.
+
 ### Hot Reload
 
 All services support hot reload when running in Docker:

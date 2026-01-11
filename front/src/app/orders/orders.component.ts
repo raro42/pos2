@@ -1,9 +1,10 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { ApiService, Order, User } from '../services/api.service';
+import { Router } from '@angular/router';
+import { ApiService, Order } from '../services/api.service';
 import { Subscription } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
+import { SidebarComponent } from '../shared/sidebar.component';
 import {
   ColDef,
   ModuleRegistry,
@@ -25,74 +26,9 @@ ModuleRegistry.registerModules([
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [DecimalPipe, RouterLink, RouterLinkActive, AgGridAngular],
+  imports: [DecimalPipe, AgGridAngular, SidebarComponent],
   template: `
-    <div class="layout" [class.sidebar-open]="sidebarOpen()">
-      <header class="mobile-header">
-        <button class="menu-toggle" (click)="toggleSidebar()">
-          <span></span><span></span><span></span>
-        </button>
-        <span class="header-title">POS</span>
-      </header>
-
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <span class="logo">POS</span>
-          <button class="close-btn" (click)="closeSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        
-        <nav class="nav">
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link" (click)="closeSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            </svg>
-            <span>Home</span>
-          </a>
-          <a routerLink="/products" routerLinkActive="active" class="nav-link" (click)="closeSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-            </svg>
-            <span>Products</span>
-          </a>
-          <a routerLink="/tables" routerLinkActive="active" class="nav-link" (click)="closeSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            <span>Tables</span>
-          </a>
-          <a routerLink="/orders" routerLinkActive="active" class="nav-link" (click)="closeSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14,2 14,8 20,8"/>
-            </svg>
-            <span>Orders</span>
-          </a>
-        </nav>
-
-        <div class="sidebar-footer">
-          @if (user()) {
-            <div class="user-info">
-              <span class="user-email">{{ user()?.email }}</span>
-            </div>
-          }
-          <button class="logout-btn" (click)="logout()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-              <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span>Sign out</span>
-          </button>
-        </div>
-      </aside>
-
-      <div class="overlay" (click)="closeSidebar()"></div>
-
-      <main class="main">
+    <app-sidebar>
         <div class="page-header">
           <h1>Orders</h1>
           <button class="btn btn-secondary" (click)="loadOrders()">
@@ -120,6 +56,7 @@ ModuleRegistry.registerModules([
                       <div>
                         <span class="order-id">#{{ order.id }}</span>
                         <span class="order-table">{{ order.table_name }}</span>
+                        <span class="order-time">Order Time: {{ formatOrderTime(order.created_at) }}</span>
                       </div>
                       <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
                     </div>
@@ -180,38 +117,9 @@ ModuleRegistry.registerModules([
             }
           }
         </div>
-      </main>
-    </div>
+    </app-sidebar>
   `,
   styles: [`
-    .layout { display: flex; min-height: 100vh; background: var(--color-bg); }
-
-    .sidebar {
-      width: 240px; background: var(--color-surface); border-right: 1px solid var(--color-border);
-      display: flex; flex-direction: column; position: fixed; height: 100vh; left: 0; top: 0; z-index: 100;
-    }
-    .sidebar-header { padding: var(--space-5); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); }
-    .logo { font-size: 1.25rem; font-weight: 700; color: var(--color-primary); }
-    .close-btn { display: none; background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: var(--space-2); }
-    .nav { flex: 1; padding: var(--space-4) 0; }
-    .nav-link {
-      display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5);
-      color: var(--color-text-muted); text-decoration: none; font-size: 0.9375rem; font-weight: 500;
-      transition: all 0.15s ease; border-left: 3px solid transparent;
-      &:hover { color: var(--color-text); background: var(--color-bg); }
-      &.active { color: var(--color-primary); background: var(--color-primary-light); border-left-color: var(--color-primary); }
-    }
-    .sidebar-footer { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border); }
-    .user-info { margin-bottom: var(--space-3); }
-    .user-email { font-size: 0.875rem; color: var(--color-text); display: block; overflow: hidden; text-overflow: ellipsis; }
-    .logout-btn {
-      display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-3);
-      background: none; border: 1px solid var(--color-border); border-radius: var(--radius-md);
-      color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; transition: all 0.15s ease;
-      &:hover { background: var(--color-bg); color: var(--color-text); }
-    }
-
-    .main { flex: 1; margin-left: 240px; padding: var(--space-6); }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); }
     .page-header h1 { font-size: 1.5rem; font-weight: 600; color: var(--color-text); margin: 0; }
 
@@ -251,8 +159,10 @@ ModuleRegistry.registerModules([
     }
 
     .order-header { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .order-header > div { display: flex; flex-direction: column; gap: var(--space-1); }
     .order-id { font-weight: 600; color: var(--color-text); }
-    .order-table { color: var(--color-text-muted); margin-left: var(--space-2); font-size: 0.875rem; }
+    .order-table { color: var(--color-text-muted); font-size: 0.875rem; }
+    .order-time { color: var(--color-text-muted); font-size: 0.75rem; }
 
     .status-badge {
       padding: var(--space-1) var(--space-3); border-radius: 20px; font-size: 0.75rem; font-weight: 600;
@@ -305,8 +215,6 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   orders = signal<Order[]>([]);
   loading = signal(true);
-  user = signal<User | null>(null);
-  sidebarOpen = signal(false);
 
   // Computed signals for separating active and completed orders
   activeOrders = computed(() =>
@@ -404,7 +312,6 @@ export class OrdersComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit() {
-    this.api.user$.subscribe(user => this.user.set(user));
     this.loadOrders();
     this.api.connectWebSocket();
     this.wsSub = this.api.orderUpdates$.subscribe(() => this.loadOrders());
@@ -414,9 +321,6 @@ export class OrdersComponent implements OnInit, OnDestroy {
     this.wsSub?.unsubscribe();
   }
 
-  toggleSidebar() { this.sidebarOpen.update(v => !v); }
-  closeSidebar() { this.sidebarOpen.set(false); }
-  logout() { this.api.logout(); this.router.navigate(['/login']); }
 
   loadOrders() {
     this.loading.set(true);
@@ -435,6 +339,39 @@ export class OrdersComponent implements OnInit, OnDestroy {
       completed: 'Completed'
     };
     return labels[status] || status;
+  }
+
+  formatOrderTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    // If less than 1 minute ago
+    if (diffMins < 1) {
+      return 'Just now';
+    }
+    // If less than 1 hour ago
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    }
+    // If less than 24 hours ago
+    if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    }
+    // If less than 7 days ago
+    if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    }
+    // Otherwise show formatted date and time
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   updateStatus(order: Order, status: string) {
