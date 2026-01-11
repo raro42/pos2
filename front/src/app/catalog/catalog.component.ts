@@ -123,11 +123,11 @@ import { environment } from '../../environments/environment';
                 <!-- Add to Menu Button -->
                 <div class="catalog-actions">
                   @if (isInMenu(item.id)) {
-                    <button class="btn btn-secondary" disabled>
+                    <button class="btn btn-danger" (click)="removeFromMenu(item.id)" [disabled]="removing()">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 6L9 17l-5-5"/>
+                        <path d="M18 6L6 18M6 6l12 12"/>
                       </svg>
-                      Already in Menu
+                      {{ removing() ? 'Removing...' : 'Remove from Menu' }}
                     </button>
                   } @else {
                     <button class="btn btn-primary" (click)="openAddDialog(item)" [disabled]="adding()">
@@ -409,6 +409,14 @@ import { environment } from '../../environments/environment';
       padding: 3rem;
       color: #666;
     }
+
+    .btn-danger {
+      background: var(--color-error);
+      color: white;
+      &:hover:not(:disabled) {
+        background: #b91c1c;
+      }
+    }
   `]
 })
 export class CatalogComponent implements OnInit {
@@ -427,6 +435,7 @@ export class CatalogComponent implements OnInit {
   
   selectedItem = signal<CatalogItem | null>(null);
   adding = signal(false);
+  removing = signal(false);
   
   addFormData = {
     name: '',
@@ -511,6 +520,11 @@ export class CatalogComponent implements OnInit {
     return this.tenantProducts().some(tp => tp.catalog_id === catalogId && tp.is_active);
   }
 
+  getTenantProductId(catalogId: number): number | null {
+    const product = this.tenantProducts().find(tp => tp.catalog_id === catalogId && tp.is_active);
+    return product?.id || null;
+  }
+
   openAddDialog(item: CatalogItem) {
     this.selectedItem.set(item);
     this.addFormData = {
@@ -566,6 +580,28 @@ export class CatalogComponent implements OnInit {
       error: (err) => {
         this.error.set('Failed to add product: ' + (err.error?.detail || err.message));
         this.adding.set(false);
+      }
+    });
+  }
+
+  removeFromMenu(catalogId: number) {
+    const tenantProductId = this.getTenantProductId(catalogId);
+    if (!tenantProductId) {
+      this.error.set('Product not found in menu');
+      return;
+    }
+
+    this.removing.set(true);
+    this.error.set('');
+
+    this.apiService.deleteTenantProduct(tenantProductId).subscribe({
+      next: () => {
+        this.loadTenantProducts();
+        this.removing.set(false);
+      },
+      error: (err) => {
+        this.error.set('Failed to remove product: ' + (err.error?.detail || err.message));
+        this.removing.set(false);
       }
     });
   }
