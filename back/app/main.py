@@ -1389,14 +1389,29 @@ def get_menu(
     
     # Add legacy Products (for backward compatibility)
     for p in legacy_products:
-        products_list.append({
+        product_data = {
             "id": p.id,
             "name": p.name,
             "price_cents": p.price_cents,
             "image_filename": p.image_filename,
             "tenant_id": p.tenant_id,
             "ingredients": p.ingredients,
-        })
+        }
+        
+        # Add category and subcategory if they exist
+        if p.category:
+            product_data["category"] = p.category
+            from .category_codes import get_category_code
+            product_data["category_code"] = get_category_code(p.category)
+        
+        if p.subcategory:
+            product_data["subcategory"] = p.subcategory
+            from .category_codes import get_all_subcategory_codes
+            subcategory_codes = get_all_subcategory_codes(p.subcategory)
+            if subcategory_codes:
+                product_data["subcategory_codes"] = subcategory_codes
+        
+        products_list.append(product_data)
     
     return {
         "table_name": table.name,
