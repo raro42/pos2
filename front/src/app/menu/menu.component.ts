@@ -1074,34 +1074,56 @@ export class MenuComponent implements OnInit {
     }
 
     // Extract subcategories from products in the selected category
-    const subcategories = new Set<string>();
+    const wineTypes = new Set<string>();
+    const hasByGlass = new Set<string>(); // Track which wine types have "by glass" option
+    
     this.products().forEach((product: Product) => {
       if (product.category === category && product.subcategory) {
-        // Extract wine type from subcategory (e.g., "Red Wine - D.O. Empordà - Wine by Glass" -> "Red Wine")
         const subcat = product.subcategory;
+        
+        // Extract wine type (first part before " - ")
         let wineType = subcat;
+        if (subcat.includes(' - ')) {
+          wineType = subcat.split(' - ')[0].trim();
+        }
         
         // Check if it contains "Wine by Glass"
         const isByGlass = subcat.includes('Wine by Glass');
         
-        // Extract wine type (first part before " - ")
-        if (subcat.includes(' - ')) {
-          wineType = subcat.split(' - ')[0];
-        }
-        
-        // Add wine type subcategory
-        if (wineType && (wineType.includes('Wine') || wineType.includes('Red') || wineType.includes('White') || wineType.includes('Sparkling') || wineType.includes('Rosé'))) {
-          subcategories.add(wineType);
-        }
-        
-        // Add "Wine by Glass" as separate subcategory if present
-        if (isByGlass) {
-          subcategories.add('Wine by Glass');
+        // Add wine type if it's a valid wine type
+        if (wineType && (
+          wineType === 'Red Wine' || 
+          wineType === 'White Wine' || 
+          wineType === 'Sparkling Wine' || 
+          wineType === 'Rosé Wine' ||
+          wineType === 'Sweet Wine' ||
+          wineType === 'Fortified Wine'
+        )) {
+          wineTypes.add(wineType);
+          if (isByGlass) {
+            hasByGlass.add(wineType);
+          }
         }
       }
     });
     
-    this.availableSubcategories.set(Array.from(subcategories).sort());
+    // Build subcategory list: wine types first, then "Wine by Glass" if any wine has it
+    const subcategories: string[] = [];
+    
+    // Add wine types in order
+    const orderedTypes = ['Red Wine', 'White Wine', 'Sparkling Wine', 'Rosé Wine', 'Sweet Wine', 'Fortified Wine'];
+    orderedTypes.forEach(type => {
+      if (wineTypes.has(type)) {
+        subcategories.push(type);
+      }
+    });
+    
+    // Add "Wine by Glass" if any wines have it
+    if (hasByGlass.size > 0) {
+      subcategories.push('Wine by Glass');
+    }
+    
+    this.availableSubcategories.set(subcategories);
   }
 
   applyFilter(category: string | null, subcategory: string | null) {
@@ -1118,11 +1140,17 @@ export class MenuComponent implements OnInit {
         // Filter for products with "Wine by Glass" in subcategory
         filtered = filtered.filter(p => p.subcategory && p.subcategory.includes('Wine by Glass'));
       } else {
-        // Filter for products with matching wine type
+        // Filter for products with matching wine type (must start with the wine type)
         filtered = filtered.filter(p => {
           if (!p.subcategory) return false;
-          // Check if subcategory starts with the wine type
-          return p.subcategory.startsWith(subcategory) || p.subcategory.includes(subcategory);
+          // Extract wine type from subcategory
+          const subcat = p.subcategory;
+          let wineType = subcat;
+          if (subcat.includes(' - ')) {
+            wineType = subcat.split(' - ')[0].trim();
+          }
+          // Must match exactly
+          return wineType === subcategory;
         });
       }
     }
