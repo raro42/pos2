@@ -1144,11 +1144,58 @@ def get_menu(
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
-    products = session.exec(
+    # Get products from TenantProduct (new catalog system) and Product (legacy)
+    tenant_products = session.exec(
+        select(models.TenantProduct).where(
+            models.TenantProduct.tenant_id == table.tenant_id,
+            models.TenantProduct.is_active == True
+        )
+    ).all()
+    
+    legacy_products = session.exec(
         select(models.Product).where(models.Product.tenant_id == table.tenant_id)
     ).all()
     
     tenant = session.exec(select(models.Tenant).where(models.Tenant.id == table.tenant_id)).first()
+    
+    # Combine products from both sources
+    products_list = []
+    
+    # Add TenantProducts (from catalog)
+    for tp in tenant_products:
+        # Get image from provider product if available, otherwise use tenant product image
+        image_filename = tp.image_filename
+        if not image_filename and tp.provider_product_id:
+            provider_product = session.exec(
+                select(models.ProviderProduct).where(models.ProviderProduct.id == tp.provider_product_id)
+            ).first()
+            if provider_product and provider_product.image_filename:
+                provider = session.exec(
+                    select(models.Provider).where(models.Provider.id == provider_product.provider_id)
+                ).first()
+                if provider:
+                    # Construct path to provider image
+                    image_filename = f"providers/{provider.id}/products/{provider_product.image_filename}"
+        
+        products_list.append({
+            "id": tp.id,
+            "name": tp.name,
+            "price_cents": tp.price_cents,
+            "image_filename": image_filename,
+            "tenant_id": tp.tenant_id,
+            "ingredients": tp.ingredients,
+        })
+    
+    # Add legacy Products (for backward compatibility)
+    for p in legacy_products:
+        products_list.append({
+            "id": p.id,
+            "name": p.name,
+            "price_cents": p.price_cents,
+            "image_filename": p.image_filename,
+            "tenant_id": p.tenant_id,
+            "ingredients": p.ingredients,
+        })
     
     return {
         "table_name": table.name,
@@ -1163,17 +1210,7 @@ def get_menu(
         "tenant_website": tenant.website if tenant else None,
         "tenant_currency": tenant.currency if tenant else None,
         "tenant_stripe_publishable_key": tenant.stripe_publishable_key if tenant else None,
-        "products": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "price_cents": p.price_cents,
-                "image_filename": p.image_filename,
-                "tenant_id": p.tenant_id,
-                "ingredients": p.ingredients,
-            }
-            for p in products
-        ],
+        "products": products_list,
     }
 
 
