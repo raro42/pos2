@@ -134,12 +134,12 @@ interface PlacedOrder {
                       (click)="selectSubcategory(null)">
                       All {{ selectedCategory() }}
                     </button>
-                    @for (subcategory of availableSubcategories(); track subcategory) {
+                    @for (subcategoryCode of availableSubcategories(); track subcategoryCode) {
                       <button 
                         class="subcategory-btn" 
-                        [class.active]="selectedSubcategory() === subcategory"
-                        (click)="selectSubcategory(subcategory)">
-                        {{ getSubcategoryLabel(subcategory) }}
+                        [class.active]="selectedSubcategory() === subcategoryCode"
+                        (click)="selectSubcategory(subcategoryCode)">
+                        {{ getSubcategoryLabel(subcategoryCode) }}
                       </button>
                     }
                   </div>
@@ -1062,9 +1062,9 @@ export class MenuComponent implements OnInit {
     this.applyFilter(category, null);
   }
 
-  selectSubcategory(subcategory: string | null) {
-    this.selectedSubcategory.set(subcategory);
-    this.applyFilter(this.selectedCategory(), subcategory);
+  selectSubcategory(subcategoryCode: string | null) {
+    this.selectedSubcategory.set(subcategoryCode);
+    this.applyFilter(this.selectedCategory(), subcategoryCode);
   }
 
   updateSubcategories(category: string | null) {
@@ -1073,66 +1073,56 @@ export class MenuComponent implements OnInit {
       return;
     }
 
-    // Extract subcategories from products in the selected category
-    // Use wine_type (from API/description) as primary source, fallback to subcategory
-    const wineTypes = new Set<string>();
-    const hasByGlass = new Set<string>(); // Track which wine types have "by glass" option
+    // Extract all subcategory codes from products in the selected category
+    const subcategoryCodes = new Set<string>();
     
     this.products().forEach((product: Product) => {
       if (product.category === category) {
-        // Use wine_type if available (more reliable), otherwise extract from subcategory
-        let wineType = product.wine_type;
-        
-        if (!wineType && product.subcategory) {
-          // Fallback: extract from subcategory
-          const subcat = product.subcategory;
-          if (subcat.includes(' - ')) {
-            wineType = subcat.split(' - ')[0].trim();
-          } else {
-            wineType = subcat;
-          }
-        }
-        
-        // Check if it contains "Wine by Glass" in subcategory
-        const isByGlass = product.subcategory && product.subcategory.includes('Wine by Glass');
-        
-        // Add wine type if it's a valid wine type
-        if (wineType && (
-          wineType === 'Red Wine' || 
-          wineType === 'White Wine' || 
-          wineType === 'Sparkling Wine' || 
-          wineType === 'Rosé Wine' ||
-          wineType === 'Sweet Wine' ||
-          wineType === 'Fortified Wine'
-        )) {
-          wineTypes.add(wineType);
-          if (isByGlass) {
-            hasByGlass.add(wineType);
+        // Use subcategory_codes if available (from backend)
+        if (product.subcategory_codes && product.subcategory_codes.length > 0) {
+          product.subcategory_codes.forEach(code => subcategoryCodes.add(code));
+        } else {
+          // Fallback: extract codes from subcategory string
+          if (product.subcategory) {
+            // Extract wine type code
+            const wineTypeCode = this.getWineTypeCodeFromString(product.wine_type || product.subcategory);
+            if (wineTypeCode) {
+              subcategoryCodes.add(wineTypeCode);
+            }
+            // Check for Wine by Glass
+            if (product.subcategory.includes('Wine by Glass')) {
+              subcategoryCodes.add('WINE_BY_GLASS');
+            }
           }
         }
       }
     });
     
-    // Build subcategory list: wine types first, then "Wine by Glass" if any wine has it
+    // Build ordered subcategory list
+    const orderedCodes = ['WINE_RED', 'WINE_WHITE', 'WINE_SPARKLING', 'WINE_ROSE', 'WINE_SWEET', 'WINE_FORTIFIED', 'WINE_BY_GLASS'];
     const subcategories: string[] = [];
     
-    // Add wine types in order
-    const orderedTypes = ['Red Wine', 'White Wine', 'Sparkling Wine', 'Rosé Wine', 'Sweet Wine', 'Fortified Wine'];
-    orderedTypes.forEach(type => {
-      if (wineTypes.has(type)) {
-        subcategories.push(type);
+    orderedCodes.forEach(code => {
+      if (subcategoryCodes.has(code)) {
+        subcategories.push(code);
       }
     });
-    
-    // Add "Wine by Glass" if any wines have it
-    if (hasByGlass.size > 0) {
-      subcategories.push('Wine by Glass');
-    }
     
     this.availableSubcategories.set(subcategories);
   }
 
-  applyFilter(category: string | null, subcategory: string | null) {
+  getWineTypeCodeFromString(wineType: string | undefined): string | null {
+    if (!wineType) return null;
+    if (wineType === 'Red Wine') return 'WINE_RED';
+    if (wineType === 'White Wine') return 'WINE_WHITE';
+    if (wineType === 'Sparkling Wine') return 'WINE_SPARKLING';
+    if (wineType === 'Rosé Wine') return 'WINE_ROSE';
+    if (wineType === 'Sweet Wine') return 'WINE_SWEET';
+    if (wineType === 'Fortified Wine') return 'WINE_FORTIFIED';
+    return null;
+  }
+
+  applyFilter(category: string | null, subcategoryCode: string | null) {
     let filtered = this.products();
     
     // Filter by main category
@@ -1140,28 +1130,24 @@ export class MenuComponent implements OnInit {
       filtered = filtered.filter(p => p.category === category);
     }
     
-    // Filter by subcategory
-    if (subcategory) {
-      if (subcategory === 'Wine by Glass') {
-        // Filter for products with "Wine by Glass" in subcategory
-        filtered = filtered.filter(p => p.subcategory && p.subcategory.includes('Wine by Glass'));
+    // Filter by subcategory code
+    if (subcategoryCode) {
+      if (subcategoryCode === 'WINE_BY_GLASS') {
+        // Filter for products with "Wine by Glass" code
+        filtered = filtered.filter(p => 
+          p.subcategory_codes?.includes('WINE_BY_GLASS') || 
+          (p.subcategory && p.subcategory.includes('Wine by Glass'))
+        );
       } else {
-        // Filter by wine_type (most reliable) or fallback to subcategory
+        // Filter by subcategory code
         filtered = filtered.filter(p => {
-          // Use wine_type if available (corrected from description/API)
-          if (p.wine_type) {
-            return p.wine_type === subcategory;
+          // Use subcategory_codes if available
+          if (p.subcategory_codes && p.subcategory_codes.includes(subcategoryCode)) {
+            return true;
           }
-          // Fallback: extract from subcategory
-          if (p.subcategory) {
-            const subcat = p.subcategory;
-            let wineType = subcat;
-            if (subcat.includes(' - ')) {
-              wineType = subcat.split(' - ')[0].trim();
-            }
-            return wineType === subcategory;
-          }
-          return false;
+          // Fallback: check wine_type matches the code
+          const wineTypeCode = this.getWineTypeCodeFromString(p.wine_type);
+          return wineTypeCode === subcategoryCode;
         });
       }
     }
@@ -1169,16 +1155,26 @@ export class MenuComponent implements OnInit {
     this.filteredProducts.set(filtered);
   }
 
-  getSubcategoryLabel(subcategory: string): string {
-    // Map wine types to Spanish labels
-    if (subcategory === 'Wine by Glass') return 'Por Copas';
-    if (subcategory.includes('Red Wine')) return 'Tinto';
-    if (subcategory.includes('White Wine')) return 'Blanco';
-    if (subcategory.includes('Sparkling Wine')) return 'Espumoso';
-    if (subcategory.includes('Rosé Wine')) return 'Rosado';
-    if (subcategory.includes('Sweet Wine')) return 'Dulce';
-    if (subcategory.includes('Fortified Wine')) return 'Generoso';
-    return subcategory;
+  getSubcategoryLabel(subcategoryCode: string): string {
+    // Map subcategory codes to Spanish labels (can be extended for i18n)
+    const labels: Record<string, string> = {
+      'WINE_RED': 'Tinto',
+      'WINE_WHITE': 'Blanco',
+      'WINE_SPARKLING': 'Espumoso',
+      'WINE_ROSE': 'Rosado',
+      'WINE_SWEET': 'Dulce',
+      'WINE_FORTIFIED': 'Generoso',
+      'WINE_BY_GLASS': 'Por Copas',
+      // Add more subcategory labels as needed
+      'APPETIZERS': 'Aperitivos',
+      'SALADS': 'Ensaladas',
+      'SOUPS': 'Sopas',
+      'MEAT': 'Carne',
+      'FISH': 'Pescado',
+      'VEGETARIAN': 'Vegetariano',
+      'VEGAN': 'Vegano',
+    };
+    return labels[subcategoryCode] || subcategoryCode;
   }
 
   getProductImageUrl(product: Product): string | null {

@@ -1266,11 +1266,22 @@ def get_menu(
         }
         
         # Add catalog category, subcategory and description
+        # Use codes for internationalization
         if catalog_item:
             if catalog_item.category:
+                from .category_codes import get_category_code
                 product_data["category"] = catalog_item.category
+                product_data["category_code"] = get_category_code(catalog_item.category)
             if catalog_item.subcategory:
                 product_data["subcategory"] = catalog_item.subcategory
+                # Extract subcategory codes (wine type + wine by glass if applicable)
+                from .category_codes import extract_wine_type_code, extract_wine_by_glass_code
+                wine_type_code = extract_wine_type_code(catalog_item.subcategory)
+                wine_by_glass_code = extract_wine_by_glass_code(catalog_item.subcategory)
+                if wine_type_code:
+                    product_data["subcategory_codes"] = [wine_type_code]
+                    if wine_by_glass_code:
+                        product_data["subcategory_codes"].append(wine_by_glass_code)
             if catalog_item.description:
                 product_data["description"] = catalog_item.description
         
@@ -1342,6 +1353,15 @@ def get_menu(
         
         if wine_type:
             product_data["wine_type"] = wine_type
+            # Also add wine type code for filtering
+            from .category_codes import extract_wine_type_code
+            wine_type_code = extract_wine_type_code(wine_type)
+            if wine_type_code and "subcategory_codes" not in product_data:
+                product_data["subcategory_codes"] = []
+            if wine_type_code and wine_type_code not in product_data.get("subcategory_codes", []):
+                if "subcategory_codes" not in product_data:
+                    product_data["subcategory_codes"] = []
+                product_data["subcategory_codes"].append(wine_type_code)
         
         # Add detailed wine information from provider product
         if provider_product:

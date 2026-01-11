@@ -30,7 +30,9 @@ export interface Product {
   image_size_bytes?: number | null;
   image_size_formatted?: string | null;
   category?: string; // Main category: "Starters", "Main Course", "Desserts", "Beverages", "Sides"
+  category_code?: string; // Category code for i18n: "STARTERS", "MAIN_COURSE", "BEVERAGES", etc.
   subcategory?: string; // Subcategory: "Red Wine", "White Wine", "Wine by Glass", etc.
+  subcategory_codes?: string[]; // Subcategory codes for i18n: ["WINE_RED", "WINE_BY_GLASS"], etc.
   // Wine details
   description?: string;
   detailed_description?: string;
