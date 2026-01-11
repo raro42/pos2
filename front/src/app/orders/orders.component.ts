@@ -56,7 +56,7 @@ ModuleRegistry.registerModules([
                       <div>
                         <span class="order-id">#{{ order.id }}</span>
                         <span class="order-table">{{ order.table_name }}</span>
-                        <span class="order-time">Order Time: {{ formatOrderTime(order.created_at) }}</span>
+                        <span class="order-time" [title]="formatExactTime(order.created_at)">Order Time: {{ formatOrderTime(order.created_at) }}</span>
                       </div>
                       <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
                     </div>
@@ -363,17 +363,71 @@ export class OrdersComponent implements OnInit, OnDestroy {
     return `${currencySymbol}${(priceCents / 100).toFixed(2)}`;
   }
 
+  formatExactTime(dateString: string): string {
+    if (!dateString) return 'Unknown';
+    
+    try {
+      const dateStr = dateString.endsWith('Z') || dateString.includes('+') || dateString.includes('-', 10) 
+        ? dateString 
+        : dateString + 'Z';
+      const date = new Date(dateStr);
+      
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateString;
+    }
+  }
+
   formatOrderTime(dateString: string): string {
-    const date = new Date(dateString);
+    if (!dateString) return 'Unknown';
+    
+    // Parse the date string - ensure it's treated as UTC if no timezone is specified
+    let date: Date;
+    try {
+      // If the string doesn't end with Z or timezone, assume it's UTC
+      const dateStr = dateString.endsWith('Z') || dateString.includes('+') || dateString.includes('-', 10) 
+        ? dateString 
+        : dateString + 'Z';
+      date = new Date(dateStr);
+    } catch {
+      date = new Date(dateString);
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date string:', dateString);
+      return 'Invalid date';
+    }
+    
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
+    
+    // Handle negative differences (future dates) - shouldn't happen but just in case
+    if (diffMs < 0) {
+      return 'Just now';
+    }
+    
+    // Calculate time differences
+    const diffSeconds = Math.floor(diffMs / 1000);
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
     // If less than 1 minute ago
-    if (diffMins < 1) {
-      return 'Just now';
+    if (diffSeconds < 60) {
+      return diffSeconds < 10 ? 'Just now' : `${diffSeconds}s ago`;
     }
     // If less than 1 hour ago
     if (diffMins < 60) {
