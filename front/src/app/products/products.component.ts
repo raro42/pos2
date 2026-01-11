@@ -194,7 +194,7 @@ import { CommonModule } from '@angular/common';
                           <select 
                             class="inline-select" 
                             [(ngModel)]="editingSubcategory"
-                            [disabled]="!editingCategory || getSubcategoriesForCategory(editingCategory).length === 0"
+                            [disabled]="!editingCategory || getSubcategoriesForCategory(editingCategory || '').length === 0"
                             (blur)="saveCategoryInline(product)"
                             (keydown.escape)="cancelCategoryEdit()">
                             <option value="">None</option>
@@ -563,8 +563,8 @@ export class ProductsComponent implements OnInit {
   categories = signal<Record<string, string[]>>({});
   availableSubcategories = signal<string[]>([]);
   editingCategoryProductId = signal<number | null>(null);
-  editingCategory = signal<string>('');
-  editingSubcategory = signal<string>('');
+  editingCategory: string = '';
+  editingSubcategory: string = '';
 
   ngOnInit() {
     this.loadTenantSettings();
@@ -604,15 +604,15 @@ export class ProductsComponent implements OnInit {
 
   onCategoryChangeInline() {
     // Update subcategory when category changes inline
-    const selectedCategory = this.editingCategory();
+    const selectedCategory = this.editingCategory;
     if (selectedCategory && this.categories()[selectedCategory]) {
       // Keep subcategory if it's still valid, otherwise clear it
       const validSubcats = this.categories()[selectedCategory];
-      if (this.editingSubcategory() && !validSubcats.includes(this.editingSubcategory())) {
-        this.editingSubcategory.set('');
+      if (this.editingSubcategory && !validSubcats.includes(this.editingSubcategory)) {
+        this.editingSubcategory = '';
       }
     } else {
-      this.editingSubcategory.set('');
+      this.editingSubcategory = '';
     }
   }
 
@@ -631,8 +631,8 @@ export class ProductsComponent implements OnInit {
       }
     }
     this.editingCategoryProductId.set(product.id);
-    this.editingCategory.set(product.category || '');
-    this.editingSubcategory.set(product.subcategory || '');
+    this.editingCategory = product.category || '';
+    this.editingSubcategory = product.subcategory || '';
     // Focus the category select after a brief delay
     setTimeout(() => {
       const select = document.querySelector(`[data-product-id="${product.id}"]`) as HTMLSelectElement;
@@ -642,15 +642,15 @@ export class ProductsComponent implements OnInit {
 
   cancelCategoryEdit() {
     this.editingCategoryProductId.set(null);
-    this.editingCategory.set('');
-    this.editingSubcategory.set('');
+    this.editingCategory = '';
+    this.editingSubcategory = '';
   }
 
   saveCategoryInline(product: Product) {
     if (!product.id || this.editingCategoryProductId() !== product.id) return;
     
-    const category = this.editingCategory() || undefined;
-    const subcategory = this.editingSubcategory() || undefined;
+    const category = this.editingCategory || undefined;
+    const subcategory = this.editingSubcategory || undefined;
     
     // Only update if changed
     if (category === product.category && subcategory === product.subcategory) {

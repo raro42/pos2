@@ -1135,10 +1135,10 @@ export class MenuComponent implements OnInit {
     const subcatLower = subcategory.toLowerCase();
     
     // Map common subcategory strings to codes
-    if (subcategory === 'Appetizers' || 'appetizers' in subcatLower) codes.push('APPETIZERS');
-    if (subcategory === 'Salads' || 'salads' in subcatLower) codes.push('SALADS');
-    if (subcategory === 'Soups' || 'soups' in subcatLower) codes.push('SOUPS');
-    if (subcategory === 'Bread & Dips' || ('bread' in subcatLower && 'dips' in subcatLower)) codes.push('BREAD_DIPS');
+    if (subcategory === 'Appetizers' || subcatLower.includes('appetizers')) codes.push('APPETIZERS');
+    if (subcategory === 'Salads' || subcatLower.includes('salads')) codes.push('SALADS');
+    if (subcategory === 'Soups' || subcatLower.includes('soups')) codes.push('SOUPS');
+    if (subcategory === 'Bread & Dips' || (subcatLower.includes('bread') && subcatLower.includes('dips'))) codes.push('BREAD_DIPS');
     if (subcategory === 'Meat') codes.push('MEAT');
     if (subcategory === 'Fish') codes.push('FISH');
     if (subcategory === 'Poultry') codes.push('POULTRY');
