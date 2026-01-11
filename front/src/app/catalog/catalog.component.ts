@@ -79,6 +79,13 @@ import { environment } from '../../environments/environment';
                   }
                 </div>
                 
+                @if (item.country || item.region) {
+                  <div class="catalog-origin">
+                    @if (item.country) { {{ item.country }} }
+                    @if (item.region) { - {{ item.region }} }
+                  </div>
+                }
+                
                 @if (item.description) {
                   <p class="catalog-description">{{ item.description }}</p>
                 }
@@ -106,12 +113,6 @@ import { environment } from '../../environments/environment';
                               <span class="provider-price">{{ formatPrice(provider.price_cents) }}</span>
                             }
                           </div>
-                          @if (provider.country || provider.region) {
-                            <div class="provider-meta">
-                              @if (provider.country) { {{ provider.country }} }
-                              @if (provider.region) { - {{ provider.region }} }
-                            </div>
-                          }
                         </div>
                       }
                     </div>
@@ -274,6 +275,13 @@ import { environment } from '../../environments/environment';
       border-radius: 4px;
       font-size: 0.85rem;
       color: #666;
+    }
+
+    .catalog-origin {
+      color: #666;
+      font-size: 0.85rem;
+      margin: 0.25rem 0;
+      font-style: italic;
     }
 
     .catalog-description {

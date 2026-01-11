@@ -138,6 +138,8 @@ export interface CatalogItem {
   barcode?: string | null;
   brand?: string | null;
   image_url?: string | null;
+  country?: string | null;
+  region?: string | null;
   providers: ProviderInfo[];
   min_price_cents?: number | null;
   max_price_cents?: number | null;

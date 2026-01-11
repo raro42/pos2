@@ -792,6 +792,14 @@ async def list_catalog(
         if providers_data and providers_data[0].get("image_url"):
             main_image_url = providers_data[0]["image_url"]
         
+        # Get origin (country/region) from first provider - this is product-level info, not provider-level
+        origin_country = None
+        origin_region = None
+        if providers_data:
+            # Use first provider's origin (most common case)
+            origin_country = providers_data[0].get("country")
+            origin_region = providers_data[0].get("region")
+        
         result.append({
             "id": item.id,
             "name": item.name,
@@ -801,6 +809,8 @@ async def list_catalog(
             "barcode": item.barcode,
             "brand": item.brand,
             "image_url": main_image_url,
+            "country": origin_country,
+            "region": origin_region,
             "providers": providers_data,
             "min_price_cents": min([p["price_cents"] for p in providers_data if p["price_cents"]], default=None),
             "max_price_cents": max([p["price_cents"] for p in providers_data if p["price_cents"]], default=None),
@@ -885,6 +895,13 @@ async def get_catalog_item(
     if providers_data and providers_data[0].get("image_url"):
         main_image_url = providers_data[0]["image_url"]
     
+    # Get origin (country/region) from first provider - this is product-level info, not provider-level
+    origin_country = None
+    origin_region = None
+    if providers_data:
+        origin_country = providers_data[0].get("country")
+        origin_region = providers_data[0].get("region")
+    
     return {
         "id": catalog_item.id,
         "name": catalog_item.name,
@@ -894,6 +911,8 @@ async def get_catalog_item(
         "barcode": catalog_item.barcode,
         "brand": catalog_item.brand,
         "image_url": main_image_url,
+        "country": origin_country,
+        "region": origin_region,
         "providers": providers_data,
         "min_price_cents": min([p["price_cents"] for p in providers_data if p["price_cents"]], default=None),
         "max_price_cents": max([p["price_cents"] for p in providers_data if p["price_cents"]], default=None),
