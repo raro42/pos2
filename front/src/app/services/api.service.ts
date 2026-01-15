@@ -108,6 +108,7 @@ export interface MenuResponse {
   tenant_address?: string | null;
   tenant_website?: string | null;
   tenant_currency?: string | null;
+  tenant_currency_code?: string | null;
   tenant_stripe_publishable_key?: string | null;
   products: Product[];
 }
@@ -126,6 +127,8 @@ export interface TenantSettings {
   opening_hours?: string | null;
   immediate_payment_required?: boolean;
   currency?: string | null;
+  currency_code?: string | null;
+  default_language?: string | null;
   stripe_secret_key?: string | null;
   stripe_publishable_key?: string | null;
   logo_size_bytes?: number | null;
@@ -537,5 +540,14 @@ export class ApiService {
 
   deleteTenantProduct(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/tenant-products/${id}`);
+  }
+
+  // Translations
+  getTranslations(entityType: string, entityId: number): Observable<{ entity_type: string; entity_id: number; translations: any }> {
+    return this.http.get<{ entity_type: string; entity_id: number; translations: any }>(`${this.apiUrl}/i18n/${entityType}/${entityId}`);
+  }
+
+  updateTranslations(entityType: string, entityId: number, translations: any): Observable<{ message: string; updated: string[] }> {
+    return this.http.put<{ message: string; updated: string[] }>(`${this.apiUrl}/i18n/${entityType}/${entityId}`, translations);
   }
 }

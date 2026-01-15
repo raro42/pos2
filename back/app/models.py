@@ -26,7 +26,7 @@ class Tenant(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     # Business Profile Fields
     business_type: BusinessType | None = Field(default=None)
     description: str | None = None
@@ -36,14 +36,34 @@ class Tenant(SQLModel, table=True):
     address: str | None = None
     website: str | None = None
     logo_filename: str | None = None  # Stored in uploads/{tenant_id}/logo/
-    opening_hours: str | None = None  # JSON string: {"monday": {"open": "09:00", "close": "22:00", "closed": false}, ...}
-    immediate_payment_required: bool = Field(default=False)  # Require immediate payment for orders
-    currency: str | None = Field(default=None)  # Currency symbol (€, $, £, etc.)
-    stripe_secret_key: str | None = Field(default=None)  # Stripe secret key for this tenant
-    stripe_publishable_key: str | None = Field(default=None)  # Stripe publishable key for this tenant
-    
-    # Inventory Management
-    inventory_tracking_enabled: bool = Field(default=False)  # Enable auto-deduction on orders
+    opening_hours: str | None = (
+        None  # JSON string: {"monday": {"open": "09:00", "close": "22:00", "closed": false}, ...}
+    )
+    immediate_payment_required: bool = Field(
+        default=False
+    )  # Require immediate payment for orders
+
+    # Currency: store ISO 4217 code internally; frontend derives symbol via Intl.
+    # Keep `currency` (symbol) for backward compatibility.
+    currency_code: str | None = Field(
+        default=None
+    )  # ISO 4217, e.g. EUR, USD, MXN, INR, CNY, TWD
+    currency: str | None = Field(default=None)  # Legacy symbol (€, $, etc.)
+
+    # Default UI language for this tenant (e.g. en, es, ca, de, zh-CN, hi)
+    default_language: str | None = Field(default=None)
+
+    stripe_secret_key: str | None = Field(
+        default=None
+    )  # Stripe secret key for this tenant
+    stripe_publishable_key: str | None = Field(
+        default=None
+    )  # Stripe publishable key for this tenant
+
+    # Inventory Management (commented out - migration not applied)
+    # inventory_tracking_enabled: bool = Field(
+    #     default=False
+    # )  # Enable auto-deduction on orders
 
     users: list["User"] = Relationship(back_populates="tenant")
 
@@ -53,7 +73,7 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     hashed_password: str
     full_name: str | None = None
-    
+
     tenant_id: int | None = Field(default=None, foreign_key="tenant.id")
     tenant: Tenant | None = Relationship(back_populates="users")
 
@@ -68,17 +88,25 @@ class Product(TenantMixin, table=True):
     price_cents: int
     image_filename: str | None = None  # Stored in uploads/{tenant_id}/products/
     ingredients: str | None = None  # Comma-separated list
-    category: str | None = Field(default=None, index=True)  # Main category: "Starters", "Main Course", "Desserts", "Beverages", "Sides"
-    subcategory: str | None = Field(default=None, index=True)  # Subcategory: "Red Wine", "Appetizers", etc.
+    category: str | None = Field(
+        default=None, index=True
+    )  # Main category: "Starters", "Main Course", "Desserts", "Beverages", "Sides"
+    subcategory: str | None = Field(
+        default=None, index=True
+    )  # Subcategory: "Red Wine", "Appetizers", etc.
 
 
 # ============ PROVIDER & CATALOG SYSTEM ============
 
+
 class Provider(SQLModel, table=True):
     """Product providers (wine suppliers, food distributors, etc.)"""
+
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)  # e.g., "Tusumiller", "Sysco"
-    token: str = Field(default_factory=lambda: str(uuid4()), unique=True, index=True)  # Unique hash for secure URL access
+    token: str = Field(
+        default_factory=lambda: str(uuid4()), unique=True, index=True
+    )  # Unique hash for secure URL access
     url: str | None = None
     api_endpoint: str | None = None
     is_active: bool = Field(default=True, index=True)
@@ -90,6 +118,7 @@ class ProductCatalog(SQLModel, table=True):
     Normalized product catalog - same product from different providers links here.
     This is the master product list that restaurants browse.
     """
+
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     description: str | None = None
@@ -98,7 +127,9 @@ class ProductCatalog(SQLModel, table=True):
     barcode: str | None = Field(index=True)  # For product matching across providers
     brand: str | None = None
     # Metadata for matching products across providers
-    normalized_name: str | None = Field(index=True)  # Lowercased, normalized for matching
+    normalized_name: str | None = Field(
+        index=True
+    )  # Lowercased, normalized for matching
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -108,14 +139,19 @@ class ProviderProduct(SQLModel, table=True):
     Provider-specific product data (prices, images, availability).
     Same ProductCatalog item can have multiple ProviderProduct entries.
     """
+
     id: int | None = Field(default=None, primary_key=True)
-    catalog_id: int = Field(foreign_key="productcatalog.id", index=True)  # Links to normalized product
+    catalog_id: int = Field(
+        foreign_key="productcatalog.id", index=True
+    )  # Links to normalized product
     provider_id: int = Field(foreign_key="provider.id", index=True)
     external_id: str = Field(index=True)  # ID from provider's system
     name: str  # Provider's name for this product (may differ from catalog)
     price_cents: int | None = None  # Provider's price
     image_url: str | None = None  # Original remote URL
-    image_filename: str | None = None  # Local filename stored in uploads/providers/{provider_id}/products/
+    image_filename: str | None = (
+        None  # Local filename stored in uploads/providers/{provider_id}/products/
+    )
     availability: bool = Field(default=True, index=True)
     # Additional provider-specific metadata
     country: str | None = None
@@ -123,7 +159,9 @@ class ProviderProduct(SQLModel, table=True):
     grape_variety: str | None = None  # For wines
     volume_ml: int | None = None  # For beverages
     unit: str | None = None  # e.g., "bottle", "case", "kg"
-    wine_category_id: str | None = None  # Category ID from provider API (e.g., "18010" for Red Wine, "18011" for White Wine)
+    wine_category_id: str | None = (
+        None  # Category ID from provider API (e.g., "18010" for Red Wine, "18011" for White Wine)
+    )
     # Detailed wine information
     detailed_description: str | None = None  # Full detailed description from provider
     wine_style: str | None = None  # e.g., "Afrutados", "Crianza", etc.
@@ -142,10 +180,13 @@ class TenantProduct(SQLModel, table=True):
     Restaurant's selected products with their own pricing.
     Links tenant's Product to ProductCatalog, optionally to a specific ProviderProduct.
     """
+
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     catalog_id: int = Field(foreign_key="productcatalog.id", index=True)
-    provider_product_id: int | None = Field(default=None, foreign_key="providerproduct.id", index=True)
+    provider_product_id: int | None = Field(
+        default=None, foreign_key="providerproduct.id", index=True
+    )
     # Link to existing Product table for backward compatibility
     product_id: int | None = Field(default=None, foreign_key="product.id", index=True)
     # Restaurant's own data
@@ -160,6 +201,7 @@ class TenantProduct(SQLModel, table=True):
 
 class Floor(TenantMixin, table=True):
     """Restaurant floor/zone for canvas layout (e.g., Main Floor, Terrace, VIP)"""
+
     id: int | None = Field(default=None, primary_key=True)
     name: str  # e.g., "Main Floor", "Terrace"
     sort_order: int = Field(default=0)
@@ -187,7 +229,7 @@ class Order(TenantMixin, table=True):
     status: OrderStatus = Field(default=OrderStatus.pending)
     notes: str | None = None  # General order notes
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     items: list["OrderItem"] = Relationship(back_populates="order")
 
 
@@ -199,7 +241,7 @@ class OrderItem(SQLModel, table=True):
     quantity: int
     price_cents: int  # Snapshot of price at order time
     notes: str | None = None  # Item-specific notes (e.g., "no onions")
-    
+
     order: Order = Relationship(back_populates="items")
 
 
@@ -272,10 +314,18 @@ class TenantUpdate(SQLModel):
     website: str | None = None
     opening_hours: str | None = None  # JSON string
     immediate_payment_required: bool | None = None
+
+    # Preferred configuration: ISO 4217 currency code.
+    currency_code: str | None = None
+
+    # Legacy symbol (still accepted, but currency_code is used for Stripe/formatting).
     currency: str | None = None
+
+    default_language: str | None = None
+
     stripe_secret_key: str | None = None
     stripe_publishable_key: str | None = None
-    inventory_tracking_enabled: bool | None = None
+    # inventory_tracking_enabled: bool | None = None  # Commented out - migration not applied
 
 
 class TenantProductCreate(SQLModel):
@@ -289,3 +339,21 @@ class TenantProductUpdate(SQLModel):
     name: str | None = None
     price_cents: int | None = None
     is_active: bool | None = None
+
+
+class I18nText(SQLModel, table=True):
+    """Generic translated text storage.
+
+    - `tenant_id` NULL: global/base translations (seeded).
+    - `tenant_id` set: tenant overrides.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int | None = Field(default=None, foreign_key="tenant.id", index=True)
+
+    entity_type: str = Field(index=True)  # e.g. "tenant", "product", "product_catalog"
+    entity_id: int = Field(index=True)
+    field: str = Field(index=True)  # e.g. "name", "description"
+    lang: str = Field(index=True)  # e.g. "en", "es", "zh-CN"
+
+    text: str

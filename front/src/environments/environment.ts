@@ -1,7 +1,14 @@
+// Helper to get window config, treating empty string as valid (for relative URLs via HAProxy)
+const getWindowConfig = (key: string, fallback: string): string => {
+  if (typeof window === 'undefined') return fallback;
+  const value = (window as any)[key];
+  return value !== undefined ? value : fallback;
+};
+
 export const environment = {
   production: false,
-  apiUrl: (typeof window !== 'undefined' && (window as any).__API_URL__) || 'http://localhost:8020',
-  wsUrl: (typeof window !== 'undefined' && (window as any).__WS_URL__) || 'ws://localhost:8021',
-  stripePublishableKey: (typeof window !== 'undefined' && (window as any).__STRIPE_PUBLISHABLE_KEY__) || '',
+  apiUrl: getWindowConfig('__API_URL__', '/api'),
+  wsUrl: getWindowConfig('__WS_URL__', '/ws'),
+  stripePublishableKey: getWindowConfig('__STRIPE_PUBLISHABLE_KEY__', ''),
   version: '1.0.0',
 };

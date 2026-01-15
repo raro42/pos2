@@ -3,8 +3,8 @@ services:
     build: ./back
     container_name: pos-back
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8020}:8020"
+    expose:
+      - "8020"
     environment:
       - DB_HOST=db
       - DB_PORT=5432
@@ -15,8 +15,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-CHANGE_THIS_IN_PRODUCTION}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
-      - STRIPE_CURRENCY=${STRIPE_CURRENCY:-mxn}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:4200}
+      - STRIPE_CURRENCY=${STRIPE_CURRENCY:-eur}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:4203}
     volumes:
       - ./back:/app
       - ./back/uploads:/app/uploads
@@ -30,12 +30,13 @@ services:
     build: ./front
     container_name: pos-front
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-4200}:4200"
+    expose:
+      - "4200"
     environment:
       - NODE_ENV=development
-      - API_URL=${API_URL:-http://localhost:8020}
-      - WS_URL=${WS_URL:-ws://localhost:8021}
+      # Leave API_URL and WS_URL empty to use relative URLs (proxied through HAProxy)
+      - API_URL=${API_URL:-}
+      - WS_URL=${WS_URL:-}
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
     volumes:
       - ./front:/app
@@ -79,13 +80,26 @@ services:
     build: ./ws-bridge
     container_name: pos-ws-bridge
     restart: unless-stopped
-    ports:
-      - "${WS_PORT:-8021}:8021"
+    expose:
+      - "8021"
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
       redis:
         condition: service_healthy
+
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: pos-haproxy
+    restart: unless-stopped
+    ports:
+      - "${HAPROXY_PORT:-4203}:4202"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - front
+      - back
+      - ws-bridge
 
 volumes:
   pos_pgdata:

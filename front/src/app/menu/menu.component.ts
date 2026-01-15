@@ -1,8 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { LowerCasePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService, Product, OrderItemCreate } from '../services/api.service';
 import { environment } from '../../environments/environment';
+import { LanguagePickerComponent } from '../shared/language-picker.component';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 interface CartItem {
   product: Product;
@@ -21,24 +24,27 @@ interface PlacedOrder {
 @Component({
   selector: 'app-menu',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, LanguagePickerComponent, TranslateModule, LowerCasePipe],
   template: `
     <div class="menu-page">
       @if (loading()) {
         <div class="loading-screen">
           <div class="spinner"></div>
-          <p>Loading menu...</p>
+          <p>{{ 'COMMON.LOADING' | translate }}</p>
         </div>
       } @else if (error()) {
         <div class="error-screen">
-          <h1>Menu Not Found</h1>
-          <p>This table link may be invalid or expired.</p>
+          <h1>{{ 'MENU.TITLE' | translate }}</h1>
+          <p>{{ 'ERRORS.NOT_FOUND' | translate }}</p>
         </div>
       } @else {
         <header class="header">
-          @if (tenantLogo()) {
-            <img [src]="tenantLogo()" alt="Business Logo" class="tenant-logo" />
-          }
+          <div class="header-top">
+            @if (tenantLogo()) {
+              <img [src]="tenantLogo()" alt="Business Logo" class="tenant-logo" />
+            }
+            <app-language-picker class="menu-language-picker"></app-language-picker>
+          </div>
           <div class="header-content">
             <h1>{{ tenantName() }}</h1>
             @if (tenantDescription()) {
@@ -53,9 +59,9 @@ interface PlacedOrder {
           @if (placedOrders().length > 0) {
             <section class="section">
               <button class="section-header" (click)="ordersExpanded.set(!ordersExpanded())">
-                <span class="section-title">Your Order</span>
+                <span class="section-title">{{ 'MENU.YOUR_ORDERS' | translate }}</span>
                 <span class="status-pill" [class]="'status-' + placedOrders()[0].status">
-                  {{ getStatusLabel(placedOrders()[0].status) }}
+                  {{ ('ORDER_STATUS.' + placedOrders()[0].status) | translate }}
                 </span>
                 <svg class="chevron" [class.expanded]="ordersExpanded()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6,9 12,15 18,9"/>
@@ -67,7 +73,7 @@ interface PlacedOrder {
                   @for (order of placedOrders(); track order.id) {
                     <div class="order-card">
                       <div class="order-meta">
-                        <span>Order #{{ order.id }}</span>
+                        <span>{{ 'ORDERS.ORDER_ID' | translate }} {{ order.id }}</span>
                         <span class="order-total">{{ formatPrice(order.total) }}</span>
                       </div>
                       <div class="order-items">
@@ -80,10 +86,10 @@ interface PlacedOrder {
                         }
                       </div>
                       @if (isPaid()) {
-                        <div class="paid-banner">Paid</div>
+                        <div class="paid-banner">{{ 'PAYMENTS.PAYMENT_SUCCESSFUL' | translate }}</div>
                       } @else {
                         <button class="pay-btn" (click)="startCheckout(order)" [disabled]="processingPayment()">
-                          {{ processingPayment() ? 'Processing...' : 'Pay Now' }}
+                          {{ processingPayment() ? ('PAYMENTS.PROCESSING' | translate) : ('MENU.PAY_NOW' | translate) }}
                         </button>
                       }
                     </div>
@@ -96,7 +102,7 @@ interface PlacedOrder {
           <!-- Menu -->
           <section class="section">
             <button class="section-header" (click)="menuExpanded.set(!menuExpanded())">
-              <span class="section-title">Menu</span>
+              <span class="section-title">{{ 'MENU.TITLE' | translate }}</span>
               <span class="count-badge">{{ filteredProducts().length }}</span>
               <svg class="chevron" [class.expanded]="menuExpanded()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6,9 12,15 18,9"/>
@@ -128,11 +134,11 @@ interface PlacedOrder {
                 <!-- Subcategory Filters (shown when main category is selected) -->
                 @if (selectedCategory() && availableSubcategories().length > 0) {
                   <div class="subcategory-filters">
-                    <button 
-                      class="subcategory-btn" 
+                    <button
+                      class="subcategory-btn"
                       [class.active]="selectedSubcategory() === null"
                       (click)="selectSubcategory(null)">
-                      All {{ selectedCategory() }}
+                      {{ 'COMMON.ALL' | translate }} {{ selectedCategory() }}
                     </button>
                     @for (subcategoryCode of availableSubcategories(); track subcategoryCode) {
                       <button 
@@ -213,18 +219,18 @@ interface PlacedOrder {
                       }
                       
                       <!-- Elaboration -->
-                      @if (product.elaboration) {
-                        <div class="product-elaboration">
-                          <strong>Elaboration:</strong> {{ product.elaboration }}
-                        </div>
-                      }
+                       @if (product.elaboration) {
+                         <div class="product-elaboration">
+                           <strong>{{ 'MENU.ELABORATION' | translate }}:</strong> {{ product.elaboration }}
+                         </div>
+                       }
                       
                       @if (product.ingredients) {
                         <button class="ingredients-toggle" (click)="toggleIngredients(product.id!); $event.stopPropagation()">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
                           </svg>
-                          <span>Ingredients</span>
+                          <span>{{ 'MENU.INGREDIENTS' | translate }}</span>
                           <svg class="chevron-icon" [class.open]="showIngredientsFor() === product.id" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="6,9 12,15 18,9"/>
                           </svg>
@@ -252,8 +258,8 @@ interface PlacedOrder {
         @if (cart().length > 0) {
           <div class="cart-panel">
             <div class="cart-header">
-              <h3>Your Cart</h3>
-              <span class="cart-count">{{ getTotalItems() }} items</span>
+              <h3>{{ 'MENU.CART' | translate }}</h3>
+              <span class="cart-count">{{ getTotalItems() }} {{ 'COMMON.QUANTITY' | translate | lowercase }}</span>
             </div>
             
             <div class="cart-items">
@@ -274,11 +280,11 @@ interface PlacedOrder {
 
             <div class="cart-footer">
               <div class="cart-total">
-                <span>Total</span>
+                <span>{{ 'COMMON.TOTAL' | translate }}</span>
                 <span class="total-amount">{{ formatPrice(getTotal()) }}</span>
               </div>
               <button class="submit-btn" (click)="submitOrder()" [disabled]="submitting()">
-                {{ submitting() ? 'Placing Order...' : (placedOrders().length > 0 ? 'Add to Order' : 'Place Order') }}
+                {{ submitting() ? ('COMMON.LOADING' | translate) : (placedOrders().length > 0 ? ('MENU.ADD_TO_ORDER' | translate) : ('MENU.PLACE_ORDER' | translate)) }}
               </button>
             </div>
           </div>
@@ -286,7 +292,7 @@ interface PlacedOrder {
 
         <!-- Success Toast -->
         @if (showSuccessToast()) {
-          <div class="toast">Items added to Order #{{ lastOrderId() }}</div>
+          <div class="toast">{{ 'MENU.ITEMS_ADDED_TO_ORDER' | translate:{ orderId: lastOrderId() } }}</div>
         }
 
         <!-- Payment Modal -->
@@ -294,7 +300,7 @@ interface PlacedOrder {
           <div class="modal-overlay" (click)="cancelPayment()">
             <div class="modal" (click)="$event.stopPropagation()">
               <div class="modal-header">
-                <h3>Checkout</h3>
+                <h3>{{ 'MENU.CHECKOUT' | translate }}</h3>
                 <button class="close-btn" (click)="cancelPayment()">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -303,24 +309,24 @@ interface PlacedOrder {
               </div>
               <div class="modal-body">
                 <div class="payment-total">
-                  Total: <strong>{{ formatPrice(paymentAmount()) }}</strong>
+                  {{ 'COMMON.TOTAL' | translate }}: <strong>{{ formatPrice(paymentAmount()) }}</strong>
                 </div>
                 <div id="card-element" class="card-element"></div>
                 @if (cardError()) {
                   <div class="card-errors">{{ cardError() }}</div>
                 }
                 @if (paymentSuccess()) {
-                  <div class="payment-success">Payment successful!</div>
+                  <div class="payment-success">{{ 'PAYMENTS.PAYMENT_SUCCESSFUL' | translate }}</div>
                 }
               </div>
               <div class="modal-footer">
                 @if (!paymentSuccess()) {
-                  <button class="btn-cancel" (click)="cancelPayment()">Cancel</button>
+                  <button class="btn-cancel" (click)="cancelPayment()">{{ 'COMMON.CANCEL' | translate }}</button>
                   <button class="btn-pay" (click)="processPayment()" [disabled]="processingPayment()">
-                    {{ processingPayment() ? 'Processing...' : 'Pay' }}
+                    {{ processingPayment() ? ('PAYMENTS.PROCESSING' | translate) : ('PAYMENTS.PAY' | translate) }}
                   </button>
                 } @else {
-                  <button class="btn-done" (click)="finishPayment()">Done</button>
+                  <button class="btn-done" (click)="finishPayment()">{{ 'MENU.DONE' | translate }}</button>
                 }
               </div>
             </div>
@@ -369,6 +375,24 @@ interface PlacedOrder {
       flex-direction: column;
       align-items: center;
       gap: var(--space-3);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .menu-language-picker {
+      ::ng-deep .language-select {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(255, 255, 255, 0.5);
+        font-size: 0.8125rem;
+        padding: 0.25rem 0.5rem;
+        min-width: 100px;
+      }
     }
 
     .tenant-logo {
@@ -952,6 +976,7 @@ export class MenuComponent implements OnInit {
   tenantAddress = signal<string | null>(null);
   tenantWebsite = signal<string | null>(null);
   tenantCurrency = signal<string>('$');
+  tenantCurrencyCode = signal<string | null>(null);
   cart = signal<CartItem[]>([]);
   orderNotes = '';
   submitting = signal(false);
@@ -1042,6 +1067,7 @@ export class MenuComponent implements OnInit {
         this.tenantAddress.set(data.tenant_address || null);
         this.tenantWebsite.set(data.tenant_website || null);
         this.tenantCurrency.set(data.tenant_currency || '$');
+        this.tenantCurrencyCode.set(data.tenant_currency_code || null);
         
         // Set tenant Stripe publishable key for payments
         if (data.tenant_stripe_publishable_key) {
@@ -1289,14 +1315,20 @@ export class MenuComponent implements OnInit {
   getTotalItems(): number { return this.cart().reduce((sum, item) => sum + item.quantity, 0); }
   getTotal(): number { return this.cart().reduce((sum, item) => sum + item.product.price_cents * item.quantity, 0); }
   formatPrice(priceCents: number): string {
+    const currencyCode = this.tenantCurrencyCode();
+    const locale = navigator.language || 'en-US';
+    if (currencyCode) {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currencyCode,
+        currencyDisplay: 'symbol'
+      }).format(priceCents / 100);
+    }
     const currencySymbol = this.tenantCurrency();
     return `${currencySymbol}${(priceCents / 100).toFixed(2)}`;
   }
 
-  getStatusLabel(status: string): string {
-    const labels: Record<string, string> = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready', paid: 'Paid', completed: 'Done' };
-    return labels[status] || status;
-  }
+
 
   submitOrder() {
     const items: OrderItemCreate[] = this.cart().map(item => ({ product_id: item.product.id!, quantity: item.quantity, notes: item.notes || undefined }));
