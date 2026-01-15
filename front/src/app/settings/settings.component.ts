@@ -2,28 +2,42 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ApiService, TenantSettings } from '../services/api.service';
 import { SidebarComponent } from '../shared/sidebar.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, TranslateModule],
   template: `
     <app-sidebar>
         <div class="settings-container">
       <div class="page-header">
-        <h1>Business Profile Settings</h1>
-        <p class="subtitle">Manage your business information and branding</p>
+        <h1>{{ 'settings.title' | translate }}</h1>
+        <p class="subtitle">{{ 'settings.subtitle' | translate }}</p>
       </div>
 
       @if (loading()) {
-        <div class="loading">Loading settings...</div>
+        <div class="loading">{{ 'settings.loading' | translate }}</div>
       } @else {
         <form (ngSubmit)="saveSettings()" class="settings-form">
+          <!-- Language Settings -->
+          <div class="form-section">
+            <h2>{{ 'settings.language.title' | translate }}</h2>
+            <div class="form-group">
+              <label for="language">{{ 'settings.language.label' | translate }}</label>
+              <select id="language" [value]="currentLocale" (change)="onLanguageChange($event)">
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+              <p class="field-hint">{{ 'settings.language.hint' | translate }}</p>
+            </div>
+          </div>
+
           <!-- Logo Upload -->
           <div class="form-section">
-            <h2>Logo</h2>
+            <h2>{{ 'settings.logo.title' | translate }}</h2>
             <div class="logo-upload">
               @if (logoPreview() || settings()?.logo_filename) {
                 <div class="logo-preview">
@@ -35,7 +49,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
                       <div class="file-size">{{ formatFileSize(logoFile.size) }}</div>
                     }
                   </div>
-                  <button type="button" class="remove-logo" (click)="removeLogo()">Remove</button>
+                  <button type="button" class="remove-logo" (click)="removeLogo()">{{ 'settings.logo.remove' | translate }}</button>
                 </div>
               }
               <div class="upload-area">
@@ -52,18 +66,18 @@ import { SidebarComponent } from '../shared/sidebar.component';
                     <polyline points="17,8 12,3 7,8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                   </svg>
-                  Upload Logo
+                  {{ 'settings.logo.upload' | translate }}
                 </label>
-                <p class="upload-hint">Recommended: Square image, max 2MB (JPG, PNG, WebP)</p>
+                <p class="upload-hint">{{ 'settings.logo.hint' | translate }}</p>
               </div>
             </div>
           </div>
 
           <!-- Basic Information -->
           <div class="form-section">
-            <h2>Basic Information</h2>
+            <h2>{{ 'settings.basicInfo.title' | translate }}</h2>
             <div class="form-group">
-              <label for="name">Business Name *</label>
+              <label for="name">{{ 'settings.basicInfo.businessNameRequired' | translate }}</label>
               <input
                 type="text"
                 id="name"
@@ -75,35 +89,35 @@ import { SidebarComponent } from '../shared/sidebar.component';
             </div>
 
             <div class="form-group">
-              <label for="business_type">Business Type</label>
+              <label for="business_type">{{ 'settings.basicInfo.businessType' | translate }}</label>
               <select id="business_type" [(ngModel)]="formData.business_type" name="business_type">
-                <option [value]="null">Select type...</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="bar">Bar</option>
-                <option value="cafe">Café</option>
-                <option value="retail">Retail Store</option>
-                <option value="service">Service Business</option>
-                <option value="other">Other</option>
+                <option [value]="null">{{ 'settings.basicInfo.selectType' | translate }}</option>
+                <option value="restaurant">{{ 'settings.businessTypes.restaurant' | translate }}</option>
+                <option value="bar">{{ 'settings.businessTypes.bar' | translate }}</option>
+                <option value="cafe">{{ 'settings.businessTypes.cafe' | translate }}</option>
+                <option value="retail">{{ 'settings.businessTypes.retail' | translate }}</option>
+                <option value="service">{{ 'settings.businessTypes.service' | translate }}</option>
+                <option value="other">{{ 'settings.businessTypes.other' | translate }}</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label for="description">Description</label>
+              <label for="description">{{ 'settings.basicInfo.description' | translate }}</label>
               <textarea
                 id="description"
                 [(ngModel)]="formData.description"
                 name="description"
                 rows="4"
-                placeholder="A brief description of your business..."
+                [placeholder]="'settings.basicInfo.descriptionPlaceholder' | translate"
               ></textarea>
             </div>
           </div>
 
           <!-- Contact Information -->
           <div class="form-section">
-            <h2>Contact Information</h2>
+            <h2>{{ 'settings.contact.title' | translate }}</h2>
             <div class="form-group">
-              <label for="phone">Phone Number</label>
+              <label for="phone">{{ 'settings.contact.phone' | translate }}</label>
               <input
                 type="tel"
                 id="phone"
@@ -114,7 +128,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
             </div>
 
             <div class="form-group">
-              <label for="whatsapp">WhatsApp Number</label>
+              <label for="whatsapp">{{ 'settings.contact.whatsapp' | translate }}</label>
               <input
                 type="tel"
                 id="whatsapp"
@@ -125,7 +139,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
             </div>
 
             <div class="form-group">
-              <label for="email">Email</label>
+              <label for="email">{{ 'settings.contact.email' | translate }}</label>
               <input
                 type="email"
                 id="email"
@@ -136,7 +150,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
             </div>
 
             <div class="form-group">
-              <label for="address">Address</label>
+              <label for="address">{{ 'settings.contact.address' | translate }}</label>
               <input
                 type="text"
                 id="address"
@@ -147,7 +161,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
             </div>
 
             <div class="form-group">
-              <label for="website">Website</label>
+              <label for="website">{{ 'settings.contact.website' | translate }}</label>
               <input
                 type="url"
                 id="website"
@@ -160,8 +174,8 @@ import { SidebarComponent } from '../shared/sidebar.component';
 
           <!-- Opening Hours -->
           <div class="form-section">
-            <h2>Opening Hours</h2>
-            <p class="section-hint">Set your business hours for each day of the week. You can add a break between shifts.</p>
+            <h2>{{ 'settings.hours.title' | translate }}</h2>
+            <p class="section-hint">{{ 'settings.hours.hint' | translate }}</p>
             <div class="opening-hours-container">
               @for (day of daysOfWeek; track day.key) {
                 <div class="opening-hours-row">
@@ -172,7 +186,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
                         [checked]="!openingHours[day.key]?.closed"
                         (change)="toggleDayClosed(day.key, $event)"
                       />
-                      <span>{{ day.label }}</span>
+                      <span>{{ 'days.' + day.key | translate }}</span>
                     </label>
                   </div>
                   @if (!openingHours[day.key]?.closed) {
@@ -180,7 +194,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
                       @if (!openingHours[day.key]?.hasBreak) {
                         <div class="time-inputs">
                           <div class="time-group">
-                            <label [for]="'open-' + day.key">Open</label>
+                            <label [for]="'open-' + day.key">{{ 'settings.hours.open' | translate }}</label>
                             <input
                               type="time"
                               [id]="'open-' + day.key"
@@ -188,9 +202,9 @@ import { SidebarComponent } from '../shared/sidebar.component';
                               (change)="updateOpeningHours(day.key, 'open', $event)"
                             />
                           </div>
-                          <span class="time-separator">to</span>
+                          <span class="time-separator">{{ 'settings.hours.to' | translate }}</span>
                           <div class="time-group">
-                            <label [for]="'close-' + day.key">Close</label>
+                            <label [for]="'close-' + day.key">{{ 'settings.hours.close' | translate }}</label>
                             <input
                               type="time"
                               [id]="'close-' + day.key"
@@ -207,16 +221,16 @@ import { SidebarComponent } from '../shared/sidebar.component';
                             [checked]="openingHours[day.key]?.hasBreak || false"
                             (change)="toggleBreak(day.key, $event)"
                           />
-                          <span>Has break</span>
+                          <span>{{ 'settings.hours.hasBreak' | translate }}</span>
                         </label>
                       </div>
                       @if (openingHours[day.key]?.hasBreak) {
                         <div class="break-shifts">
                           <div class="shift-group">
-                            <div class="shift-label">Morning</div>
+                            <div class="shift-label">{{ 'settings.hours.morning' | translate }}</div>
                             <div class="time-inputs">
                               <div class="time-group">
-                                <label [for]="'morning-open-' + day.key">Open</label>
+                                <label [for]="'morning-open-' + day.key">{{ 'settings.hours.open' | translate }}</label>
                                 <input
                                   type="time"
                                   [id]="'morning-open-' + day.key"
@@ -224,9 +238,9 @@ import { SidebarComponent } from '../shared/sidebar.component';
                                   (change)="updateOpeningHours(day.key, 'morningOpen', $event)"
                                 />
                               </div>
-                              <span class="time-separator">to</span>
+                              <span class="time-separator">{{ 'settings.hours.to' | translate }}</span>
                               <div class="time-group">
-                                <label [for]="'morning-close-' + day.key">Close</label>
+                                <label [for]="'morning-close-' + day.key">{{ 'settings.hours.close' | translate }}</label>
                                 <input
                                   type="time"
                                   [id]="'morning-close-' + day.key"
@@ -237,10 +251,10 @@ import { SidebarComponent } from '../shared/sidebar.component';
                             </div>
                           </div>
                           <div class="shift-group">
-                            <div class="shift-label">Evening</div>
+                            <div class="shift-label">{{ 'settings.hours.evening' | translate }}</div>
                             <div class="time-inputs">
                               <div class="time-group">
-                                <label [for]="'evening-open-' + day.key">Open</label>
+                                <label [for]="'evening-open-' + day.key">{{ 'settings.hours.open' | translate }}</label>
                                 <input
                                   type="time"
                                   [id]="'evening-open-' + day.key"
@@ -248,9 +262,9 @@ import { SidebarComponent } from '../shared/sidebar.component';
                                   (change)="updateOpeningHours(day.key, 'eveningOpen', $event)"
                                 />
                               </div>
-                              <span class="time-separator">to</span>
+                              <span class="time-separator">{{ 'settings.hours.to' | translate }}</span>
                               <div class="time-group">
-                                <label [for]="'evening-close-' + day.key">Close</label>
+                                <label [for]="'evening-close-' + day.key">{{ 'settings.hours.close' | translate }}</label>
                                 <input
                                   type="time"
                                   [id]="'evening-close-' + day.key"
@@ -264,7 +278,7 @@ import { SidebarComponent } from '../shared/sidebar.component';
                       }
                     </div>
                   } @else {
-                    <div class="closed-indicator">Closed</div>
+                    <div class="closed-indicator">{{ 'settings.hours.closed' | translate }}</div>
                   }
                 </div>
               }
@@ -274,18 +288,18 @@ import { SidebarComponent } from '../shared/sidebar.component';
           <!-- Payment Settings -->
           <div class="form-section">
             <div class="section-header-with-link">
-              <h2>Payment Settings</h2>
+              <h2>{{ 'settings.payment.title' | translate }}</h2>
               <a href="https://dashboard.stripe.com/" target="_blank" rel="noopener noreferrer" class="external-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
                   <polyline points="15,3 21,3 21,9"/>
                   <line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
-                Stripe Dashboard
+                {{ 'settings.payment.stripeDashboard' | translate }}
               </a>
             </div>
             <div class="form-group">
-              <label for="currency">Currency</label>
+              <label for="currency">{{ 'settings.payment.currency' | translate }}</label>
               <input
                 type="text"
                 id="currency"
@@ -294,10 +308,10 @@ import { SidebarComponent } from '../shared/sidebar.component';
                 placeholder="€, $, £, ¥, etc."
                 maxlength="10"
               />
-              <p class="field-hint">Enter the currency symbol used for pricing (e.g., €, $, £, ¥)</p>
+              <p class="field-hint">{{ 'settings.payment.currencyHint' | translate }}</p>
             </div>
             <div class="form-group">
-              <label for="stripe_publishable_key">Stripe Publishable Key</label>
+              <label for="stripe_publishable_key">{{ 'settings.payment.stripePublishable' | translate }}</label>
               <input
                 type="text"
                 id="stripe_publishable_key"
@@ -305,18 +319,18 @@ import { SidebarComponent } from '../shared/sidebar.component';
                 name="stripe_publishable_key"
                 placeholder="pk_test_..."
               />
-              <p class="field-hint">Your Stripe publishable key (starts with pk_test_ or pk_live_)</p>
+              <p class="field-hint">{{ 'settings.payment.stripePublishableHint' | translate }}</p>
             </div>
             <div class="form-group">
-              <label for="stripe_secret_key">Stripe Secret Key</label>
+              <label for="stripe_secret_key">{{ 'settings.payment.stripeSecret' | translate }}</label>
               <input
                 type="password"
                 id="stripe_secret_key"
                 [(ngModel)]="formData.stripe_secret_key"
                 name="stripe_secret_key"
-                placeholder="sk_test_... or leave blank to keep current"
+                placeholder="sk_test_..."
               />
-              <p class="field-hint">Your Stripe secret key (starts with sk_test_ or sk_live_). Leave blank to keep current value.</p>
+              <p class="field-hint">{{ 'settings.payment.stripeSecretHint' | translate }}</p>
             </div>
             <div class="form-group">
               <label class="checkbox-label">
@@ -326,17 +340,17 @@ import { SidebarComponent } from '../shared/sidebar.component';
                   [(ngModel)]="formData.immediate_payment_required"
                   name="immediate_payment_required"
                 />
-                <span>Immediate payment required</span>
+                <span>{{ 'settings.payment.immediatePayment' | translate }}</span>
               </label>
-              <p class="field-hint">When enabled, customers must pay to place an order.</p>
+              <p class="field-hint">{{ 'settings.payment.immediatePaymentHint' | translate }}</p>
             </div>
           </div>
 
           <!-- Actions -->
           <div class="form-actions">
-            <button type="button" class="btn-secondary" (click)="cancel()">Cancel</button>
+            <button type="button" class="btn-secondary" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
             <button type="submit" class="btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save Changes' }}
+              {{ saving() ? ('settings.saving' | translate) : ('settings.saveChanges' | translate) }}
             </button>
           </div>
 
@@ -830,6 +844,152 @@ import { SidebarComponent } from '../shared/sidebar.component';
       flex: 1;
       font-size: 0.9375rem;
     }
+
+    /* Mobile-first responsive styles */
+    @media (max-width: 768px) {
+      .settings-container {
+        padding: 0 var(--space-2);
+      }
+
+      .page-header {
+        margin-bottom: var(--space-4);
+
+        h1 {
+          font-size: 1.375rem;
+        }
+
+        .subtitle {
+          font-size: 0.875rem;
+        }
+      }
+
+      .settings-form {
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+      }
+
+      .form-section {
+        margin-bottom: var(--space-5);
+
+        h2 {
+          font-size: 1.0625rem;
+        }
+
+        .section-header-with-link {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: var(--space-2);
+        }
+      }
+
+      .form-group {
+        .field-hint {
+          margin-left: 0;
+        }
+      }
+
+      .logo-preview {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-3);
+      }
+
+      .logo-image-wrapper img {
+        max-width: 150px;
+        max-height: 150px;
+      }
+
+      .opening-hours-row {
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-4);
+      }
+
+      .day-label {
+        min-width: unset;
+        width: 100%;
+        padding-top: 0;
+        padding-left: 0;
+      }
+
+      .time-inputs-wrapper {
+        width: 100%;
+      }
+
+      .time-inputs {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
+      }
+
+      .time-group {
+        min-width: unset;
+        width: 100%;
+
+        input[type="time"] {
+          width: 100%;
+          min-width: unset;
+        }
+      }
+
+      .time-separator {
+        display: none;
+      }
+
+      .break-shifts {
+        padding: var(--space-4);
+      }
+
+      .shift-group {
+        width: 100%;
+      }
+
+      .form-actions {
+        flex-direction: column-reverse;
+        gap: var(--space-2);
+
+        button {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+
+      .btn-primary,
+      .btn-secondary {
+        padding: var(--space-3) var(--space-4);
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .settings-container {
+        padding: 0;
+      }
+
+      .settings-form {
+        padding: var(--space-3);
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+      }
+
+      .form-section h2 {
+        font-size: 1rem;
+      }
+
+      .logo-image-wrapper img {
+        max-width: 120px;
+        max-height: 120px;
+      }
+
+      .opening-hours-row {
+        padding: var(--space-3);
+      }
+
+      .break-shifts {
+        padding: var(--space-3);
+      }
+    }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -844,6 +1004,10 @@ export class SettingsComponent implements OnInit {
   logoPreview = signal<string | null>(null);
   logoFile: File | null = null;
 
+  // Language settings
+  private translateService = inject(TranslateService);
+  currentLocale = localStorage.getItem('preferred-language') || 'en';
+
   daysOfWeek = [
     { key: 'monday', label: 'Monday' },
     { key: 'tuesday', label: 'Tuesday' },
@@ -854,9 +1018,9 @@ export class SettingsComponent implements OnInit {
     { key: 'sunday', label: 'Sunday' }
   ];
 
-  openingHours: Record<string, { 
-    open: string; 
-    close: string; 
+  openingHours: Record<string, {
+    open: string;
+    close: string;
     closed: boolean;
     hasBreak?: boolean;
     morningOpen?: string;
@@ -1087,15 +1251,15 @@ export class SettingsComponent implements OnInit {
   private updateSettings() {
     // Ensure opening hours are serialized before saving
     this.serializeOpeningHours();
-    
+
     // Prepare update data - only include stripe_secret_key if it was actually changed
     const updateData = { ...this.formData };
-    
+
     // If stripe_secret_key is empty string, don't send it (backend will keep existing value)
     if (updateData.stripe_secret_key === '') {
       delete updateData.stripe_secret_key;
     }
-    
+
     this.api.updateTenantSettings(updateData).subscribe({
       next: (updatedSettings) => {
         this.settings.set(updatedSettings);
@@ -1113,5 +1277,12 @@ export class SettingsComponent implements OnInit {
 
   cancel() {
     this.router.navigate(['/']);
+  }
+
+  onLanguageChange(event: Event) {
+    const lang = (event.target as HTMLSelectElement).value;
+    localStorage.setItem('preferred-language', lang);
+    this.currentLocale = lang;
+    this.translateService.use(lang);
   }
 }

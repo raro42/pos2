@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ApiService, Order } from '../services/api.service';
 import { AudioService } from '../services/audio.service';
 import { Subscription } from 'rxjs';
@@ -27,22 +28,22 @@ ModuleRegistry.registerModules([
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [AgGridAngular, SidebarComponent, FormsModule],
+  imports: [AgGridAngular, SidebarComponent, FormsModule, TranslateModule],
   template: `
     <app-sidebar>
         <div class="page-header">
-          <h1>Orders</h1>
+          <h1>{{ 'orders.title' | translate }}</h1>
           <button class="btn btn-secondary" (click)="loadOrders()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
             </svg>
-            Refresh
+            {{ 'orders.refresh' | translate }}
           </button>
         </div>
 
         <div class="content">
           @if (loading()) {
-            <div class="empty-state"><p>Loading orders...</p></div>
+            <div class="empty-state"><p>{{ 'common.loading' | translate }}</p></div>
           } @else {
             <!-- Filter Toggle -->
             <div class="filter-tabs">
@@ -50,7 +51,7 @@ ModuleRegistry.registerModules([
                 class="filter-tab" 
                 [class.active]="viewMode() === 'active'"
                 (click)="viewMode.set('active')">
-                Active Orders
+                {{ 'orders.activeOrders' | translate }}
                 @if (activeOrders().length > 0) {
                   <span class="tab-badge">{{ activeOrders().length }}</span>
                 }
@@ -59,7 +60,7 @@ ModuleRegistry.registerModules([
                 class="filter-tab" 
                 [class.active]="viewMode() === 'not_paid'"
                 (click)="viewMode.set('not_paid')">
-                Not Paid Yet
+                {{ 'orders.notPaidYet' | translate }}
                 @if (notPaidOrders().length > 0) {
                   <span class="tab-badge">{{ notPaidOrders().length }}</span>
                 }
@@ -67,7 +68,7 @@ ModuleRegistry.registerModules([
               @if (viewMode() === 'active') {
                 <label class="toggle-removed">
                   <input type="checkbox" [(ngModel)]="showRemovedItems" (change)="loadOrders()">
-                  <span>Show Removed Items</span>
+                  <span>{{ 'orders.showRemovedItems' | translate }}</span>
                 </label>
               }
             </div>
@@ -82,11 +83,11 @@ ModuleRegistry.registerModules([
                         <span class="order-id">#{{ order.id }}</span>
                         <span class="order-table">{{ order.table_name }}</span>
                         @if (order.customer_name) {
-                          <span class="order-customer">Customer: {{ order.customer_name }}</span>
+                          <span class="order-customer">{{ 'orders.customer' | translate }}: {{ order.customer_name }}</span>
                         }
-                        <span class="order-time" [title]="formatExactTime(order.created_at)">Order Time: {{ formatOrderTime(order.created_at) }}</span>
+                        <span class="order-time" [title]="formatExactTime(order.created_at)">{{ 'orders.orderTime' | translate }}: {{ formatOrderTime(order.created_at) }}</span>
                       </div>
-                      <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
+                      <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) | translate }}</span>
                     </div>
 
                     <div class="order-items">
@@ -120,8 +121,8 @@ ModuleRegistry.registerModules([
                                   class="item-status-badge clickable" 
                                   [class]="'status-' + item.status"
                                   (click)="toggleItemStatusDropdown(order.id, item.id!)"
-                                  [title]="'Click to change status'">
-                                  {{ getItemStatusLabel(item.status) }}
+                                  [title]="'orders.clickToChangeStatus' | translate">
+                                  {{ getItemStatusLabel(item.status) | translate }}
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="6,9 12,15 18,9"/>
                                   </svg>
@@ -130,7 +131,7 @@ ModuleRegistry.registerModules([
                                   <div class="status-dropdown item-status-dropdown" (click)="$event.stopPropagation()">
                                     @if (getItemStatusTransitions(item.status).backward.length > 0) {
                                       <div class="dropdown-section">
-                                        <div class="dropdown-label">Go Back</div>
+                                        <div class="dropdown-label">{{ 'orders.goBack' | translate }}</div>
                                         @for (status of getItemStatusTransitions(item.status).backward; track status) {
                                           <button 
                                             class="dropdown-item backward"
@@ -138,19 +139,19 @@ ModuleRegistry.registerModules([
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                               <polyline points="15,18 9,12 15,6"/>
                                             </svg>
-                                            {{ getItemStatusLabel(status) }}
+                                            {{ getItemStatusLabel(status) | translate }}
                                           </button>
                                         }
                                       </div>
                                     }
                                     @if (getItemStatusTransitions(item.status).forward.length > 0) {
                                       <div class="dropdown-section">
-                                        <div class="dropdown-label">Move Forward</div>
+                                       <div class="dropdown-label">{{ 'orders.moveForward' | translate }}</div>
                                         @for (status of getItemStatusTransitions(item.status).forward; track status) {
                                           <button 
                                             class="dropdown-item forward"
                                             (click)="updateItemStatus(order.id, item.id!, status); itemStatusDropdownOpen.set(null)">
-                                            {{ getItemStatusLabel(status) }}
+                                            {{ getItemStatusLabel(status) | translate }}
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                               <polyline points="9,18 15,12 9,6"/>
                                             </svg>
@@ -165,7 +166,7 @@ ModuleRegistry.registerModules([
                           </div>
                           @if (item.removed_by_customer) {
                             <div class="removed-indicator">
-                              <span class="removed-label">Removed by customer</span>
+                              <span class="removed-label">{{ 'orders.removedByCustomer' | translate }}</span>
                               @if (item.removed_at) {
                                 <span class="removed-time">{{ formatTime(item.removed_at) }}</span>
                               }
@@ -177,9 +178,9 @@ ModuleRegistry.registerModules([
 
                     <div class="order-footer">
                       <div class="order-footer-left">
-                        <span class="order-total">Total: {{ formatPrice(order.total_cents) }}</span>
+                        <span class="order-total">{{ 'orders.total' | translate }}: {{ formatPrice(order.total_cents) }}</span>
                         @if (order.removed_items_count && order.removed_items_count > 0) {
-                          <span class="removed-count">{{ order.removed_items_count }} item(s) removed</span>
+                          <span class="removed-count">{{ order.removed_items_count }} {{ 'orders.itemsRemoved' | translate }}</span>
                         }
                       </div>
                       <div class="order-actions">
@@ -188,8 +189,8 @@ ModuleRegistry.registerModules([
                             class="status-badge-btn" 
                             [class]="order.status"
                             (click)="toggleStatusDropdown(order.id)"
-                            [title]="'Click to change status'">
-                            {{ getStatusLabel(order.status) }}
+                            [title]="'orders.clickToChangeStatus' | translate">
+                            {{ getStatusLabel(order.status) | translate }}
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <polyline points="6,9 12,15 18,9"/>
                             </svg>
@@ -198,7 +199,7 @@ ModuleRegistry.registerModules([
                             <div class="status-dropdown" (click)="$event.stopPropagation()">
                               @if (getOrderStatusTransitions(order.status).backward.length > 0) {
                                 <div class="dropdown-section">
-                                  <div class="dropdown-label">Go Back</div>
+                                <div class="dropdown-label">{{ 'orders.goBack' | translate }}</div>
                                   @for (status of getOrderStatusTransitions(order.status).backward; track status) {
                                     <button 
                                       class="dropdown-item backward"
@@ -206,19 +207,19 @@ ModuleRegistry.registerModules([
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="15,18 9,12 15,6"/>
                                       </svg>
-                                      {{ getStatusLabel(status) }}
+                                      {{ getStatusLabel(status) | translate }}
                                     </button>
                                   }
                                 </div>
                               }
                               @if (getOrderStatusTransitions(order.status).forward.length > 0) {
                                 <div class="dropdown-section">
-                                  <div class="dropdown-label">Move Forward</div>
+                                  <div class="dropdown-label">{{ 'orders.moveForward' | translate }}</div>
                                   @for (status of getOrderStatusTransitions(order.status).forward; track status) {
                                     <button 
                                       class="dropdown-item forward"
                                       (click)="updateStatus(order, status)">
-                                      {{ getStatusLabel(status) }}
+                                      {{ getStatusLabel(status) | translate }}
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="9,18 15,12 9,6"/>
                                       </svg>
@@ -231,7 +232,7 @@ ModuleRegistry.registerModules([
                                   <button 
                                     class="dropdown-item forward"
                                     (click)="markAsPaid(order); statusDropdownOpen.set(null)">
-                                    Mark as Paid
+                                    {{ 'orders.payment.markAsPaid' | translate }}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <polyline points="9,18 15,12 9,6"/>
                                     </svg>
@@ -254,8 +255,8 @@ ModuleRegistry.registerModules([
                     <polyline points="14,2 14,8 20,8"/>
                   </svg>
                 </div>
-                <h3>No orders yet</h3>
-                <p>Orders will appear here when customers place them</p>
+                <h3>{{ 'orders.noOrders' | translate }}</h3>
+                <p>{{ 'orders.noOrdersHint' | translate }}</p>
               </div>
             }
 
@@ -270,11 +271,11 @@ ModuleRegistry.registerModules([
                           <span class="order-id">#{{ order.id }}</span>
                           <span class="order-table">{{ order.table_name }}</span>
                           @if (order.customer_name) {
-                            <span class="order-customer">Customer: {{ order.customer_name }}</span>
+                            <span class="order-customer">{{ 'orders.customer' | translate }}: {{ order.customer_name }}</span>
                           }
-                          <span class="order-time" [title]="formatExactTime(order.created_at)">Order Time: {{ formatOrderTime(order.created_at) }}</span>
+                          <span class="order-time" [title]="formatExactTime(order.created_at)">{{ 'orders.orderTime' | translate }}: {{ formatOrderTime(order.created_at) }}</span>
                         </div>
-                        <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) }}</span>
+                        <span class="status-badge" [class]="order.status">{{ getStatusLabel(order.status) | translate }}</span>
                       </div>
 
                       <div class="order-items">
@@ -286,7 +287,7 @@ ModuleRegistry.registerModules([
                               <span class="item-price">{{ formatPrice(item.price_cents * item.quantity) }}</span>
                               @if (item.status && !item.removed_by_customer) {
                                 <span class="item-status-badge" [class]="'status-' + item.status">
-                                  {{ getItemStatusLabel(item.status) }}
+                                  {{ getItemStatusLabel(item.status) | translate }}
                                 </span>
                               }
                             </div>
@@ -296,9 +297,9 @@ ModuleRegistry.registerModules([
 
                       <div class="order-footer">
                         <div class="order-footer-left">
-                          <span class="order-total">Total: {{ formatPrice(order.total_cents) }}</span>
+                          <span class="order-total">{{ 'orders.total' | translate }}: {{ formatPrice(order.total_cents) }}</span>
                           @if (order.removed_items_count && order.removed_items_count > 0) {
-                            <span class="removed-count">{{ order.removed_items_count }} item(s) removed</span>
+                            <span class="removed-count">{{ order.removed_items_count }} {{ 'orders.itemsRemoved' | translate }}</span>
                           }
                         </div>
                         <div class="order-actions">
@@ -307,8 +308,8 @@ ModuleRegistry.registerModules([
                               class="status-badge-btn" 
                               [class]="order.status"
                               (click)="toggleStatusDropdown(order.id)"
-                              [title]="'Click to change status'">
-                              {{ getStatusLabel(order.status) }}
+                              [title]="'orders.clickToChangeStatus' | translate">
+                              {{ getStatusLabel(order.status) | translate }}
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="6,9 12,15 18,9"/>
                               </svg>
@@ -317,7 +318,7 @@ ModuleRegistry.registerModules([
                               <div class="status-dropdown" (click)="$event.stopPropagation()">
                                 @if (getOrderStatusTransitions(order.status).backward.length > 0) {
                                   <div class="dropdown-section">
-                                    <div class="dropdown-label">Go Back</div>
+                                  <div class="dropdown-label">{{ 'orders.goBack' | translate }}</div>
                                     @for (status of getOrderStatusTransitions(order.status).backward; track status) {
                                       <button 
                                         class="dropdown-item backward"
@@ -325,19 +326,19 @@ ModuleRegistry.registerModules([
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                           <polyline points="15,18 9,12 15,6"/>
                                         </svg>
-                                        {{ getStatusLabel(status) }}
+                                        {{ getStatusLabel(status) | translate }}
                                       </button>
                                     }
                                   </div>
                                 }
                                 @if (getOrderStatusTransitions(order.status).forward.length > 0) {
                                   <div class="dropdown-section">
-                                    <div class="dropdown-label">Move Forward</div>
+                                   <div class="dropdown-label">{{ 'orders.moveForward' | translate }}</div>
                                     @for (status of getOrderStatusTransitions(order.status).forward; track status) {
                                       <button 
                                         class="dropdown-item forward"
                                         (click)="updateStatus(order, status)">
-                                        {{ getStatusLabel(status) }}
+                                        {{ getStatusLabel(status) | translate }}
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                           <polyline points="9,18 15,12 9,6"/>
                                         </svg>
@@ -349,7 +350,7 @@ ModuleRegistry.registerModules([
                                   <button 
                                     class="dropdown-item forward"
                                     (click)="markAsPaid(order); statusDropdownOpen.set(null)">
-                                    Mark as Paid
+                                    {{ 'orders.payment.markAsPaid' | translate }}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <polyline points="9,18 15,12 9,6"/>
                                     </svg>
@@ -370,8 +371,8 @@ ModuleRegistry.registerModules([
                       <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
                     </svg>
                   </div>
-                  <h3>All orders are paid</h3>
-                  <p>No unpaid orders at this time</p>
+                  <h3>{{ 'orders.allOrdersPaid' | translate }}</h3>
+                  <p>{{ 'orders.noUnpaidOrders' | translate }}</p>
                 </div>
               }
             }
@@ -379,7 +380,7 @@ ModuleRegistry.registerModules([
             <!-- Order History Section (AG Grid) -->
             @if (completedOrders().length > 0) {
               <div class="section-header history-header">
-                <h2>Order History</h2>
+                <h2>{{ 'orders.orderHistory' | translate }}</h2>
                 <span class="badge secondary">{{ completedOrders().length }}</span>
               </div>
               <div class="grid-container">
@@ -400,7 +401,7 @@ ModuleRegistry.registerModules([
           <div class="modal-overlay" (click)="closePaymentModal()">
             <div class="modal" (click)="$event.stopPropagation()">
               <div class="modal-header">
-                <h3>Mark Order as Paid</h3>
+                <h3>{{ 'orders.payment.markAsPaidTitle' | translate }}</h3>
                 <button class="icon-btn" (click)="closePaymentModal()">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -408,21 +409,21 @@ ModuleRegistry.registerModules([
                 </button>
               </div>
               <div class="modal-body">
-                <p>Order #{{ orderToMarkPaid()!.id }} - Total: {{ formatPrice(orderToMarkPaid()!.total_cents) }}</p>
+                <p>{{ 'orders.columns.id' | translate }}#{{ orderToMarkPaid()!.id }} - {{ 'orders.columns.total' | translate }}: {{ formatPrice(orderToMarkPaid()!.total_cents) }}</p>
                 <div class="form-group">
-                  <label for="payment-method">Payment Method</label>
+                  <label for="payment-method">{{ 'orders.payment.paymentMethod' | translate }}</label>
                   <select id="payment-method" [(ngModel)]="paymentMethod" class="form-select">
-                    <option value="cash">Cash</option>
-                    <option value="terminal">Card Terminal</option>
-                    <option value="stripe">Stripe (Online)</option>
-                    <option value="other">Other</option>
+                    <option value="cash">{{ 'orders.payment.methods.cash' | translate }}</option>
+                    <option value="terminal">{{ 'orders.payment.methods.terminal' | translate }}</option>
+                    <option value="stripe">{{ 'orders.payment.methods.stripe' | translate }}</option>
+                    <option value="other">{{ 'orders.payment.methods.other' | translate }}</option>
                   </select>
                 </div>
               </div>
               <div class="modal-actions">
-                <button class="btn btn-secondary" (click)="closePaymentModal()">Cancel</button>
+                <button class="btn btn-secondary" (click)="closePaymentModal()">{{ 'common.cancel' | translate }}</button>
                 <button class="btn btn-primary" (click)="confirmMarkAsPaid()" [disabled]="processingPayment()">
-                  {{ processingPayment() ? 'Processing...' : 'Mark as Paid' }}
+                  {{ processingPayment() ? ('orders.payment.processing' | translate) : ('orders.payment.markAsPaid' | translate) }}
                 </button>
               </div>
             </div>

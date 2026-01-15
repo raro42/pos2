@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ApiService, Floor, CanvasTable } from '../services/api.service';
 import { SidebarComponent } from '../shared/sidebar.component';
 
@@ -16,32 +17,32 @@ interface TableShape {
 @Component({
   selector: 'app-tables-canvas',
   standalone: true,
-  imports: [FormsModule, SidebarComponent, RouterLink],
+  imports: [FormsModule, SidebarComponent, RouterLink, TranslateModule],
   template: `
     <app-sidebar>
       <div class="canvas-container">
         <!-- Header -->
         <div class="page-header">
           <div class="header-left">
-            <h1>Floor Plan</h1>
+            <h1>{{ 'tables.canvas.title' | translate }}</h1>
             <a routerLink="/tables" class="btn btn-ghost btn-sm">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                 <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
               </svg>
-              List View
+              {{ 'tables.listView' | translate }}
             </a>
           </div>
           <div class="header-actions">
             @if (hasUnsavedChanges()) {
-              <span class="unsaved-indicator">Unsaved changes</span>
+              <span class="unsaved-indicator">{{ 'tables.canvas.unsavedChanges' | translate }}</span>
             }
             <button class="btn btn-primary" (click)="saveAllPositions()" [disabled]="!hasUnsavedChanges()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
                 <polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/>
               </svg>
-              Save Layout
+              {{ 'tables.canvas.saveLayout' | translate }}
             </button>
           </div>
         </div>
@@ -75,31 +76,31 @@ interface TableShape {
               }
             </button>
           }
-          <button class="floor-tab add-floor" (click)="addFloor()" title="Add Floor">
+          <button class="floor-tab add-floor" (click)="addFloor()" [title]="'tables.canvas.addFloor' | translate">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
           </button>
           @if (floors().length > 0 && selectedFloorId()) {
-            <button class="floor-tab floor-action edit-action" (click)="editFloor()" title="Rename floor">
+            <button class="floor-tab floor-action edit-action" (click)="editFloor()" [title]="'tables.canvas.renameFloor' | translate">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </button>
-            <button class="floor-tab floor-action danger" (click)="deleteCurrentFloor()" title="Delete floor">
+            <button class="floor-tab floor-action danger" (click)="deleteCurrentFloor()" [title]="'tables.canvas.deleteFloor' | translate">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3,6 5,6 21,6"/>
                 <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
               </svg>
             </button>
           }
-          <button class="floor-tab add-table-btn" (click)="showAddTableModal = true" title="Add Table">
+          <button class="floor-tab add-table-btn" (click)="showAddTableModal = true" [title]="'tables.addTable' | translate">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
             </svg>
-            Add Table
+            {{ 'tables.addTable' | translate }}
           </button>
         </div>
 
@@ -107,20 +108,20 @@ interface TableShape {
         <div class="canvas-wrapper">
           <!-- Zoom Controls -->
           <div class="zoom-controls">
-            <button class="zoom-btn" (click)="zoomIn()" title="Zoom In">
+            <button class="zoom-btn" (click)="zoomIn()" [title]="'tables.canvas.zoomIn' | translate">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
               </svg>
             </button>
             <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button class="zoom-btn" (click)="zoomOut()" title="Zoom Out">
+            <button class="zoom-btn" (click)="zoomOut()" [title]="'tables.canvas.zoomOut' | translate">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 <line x1="8" y1="11" x2="14" y2="11"/>
               </svg>
             </button>
-            <button class="zoom-btn" (click)="resetZoom()" title="Reset Zoom">
+            <button class="zoom-btn" (click)="resetZoom()" [title]="'tables.canvas.resetZoom' | translate">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
@@ -143,13 +144,13 @@ interface TableShape {
                   <line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
                   <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
                 </svg>
-                <h3>Create your first floor</h3>
-                <p>Start by adding a floor to design your restaurant layout</p>
+                <h3>{{ 'tables.canvas.createFirstFloor' | translate }}</h3>
+                <p>{{ 'tables.canvas.createFirstFloorHint' | translate }}</p>
                 <button class="btn btn-primary" (click)="addFloor()">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
-                  Add Floor
+                  {{ 'tables.canvas.addFloor' | translate }}
                 </button>
               </div>
             } @else {
@@ -348,7 +349,7 @@ interface TableShape {
                 <div class="panel-title-row">
                   <h3>{{ selectedTable()?.name }}</h3>
                   <div class="status-badge" [class.occupied]="selectedTable()?.status === 'occupied'">
-                    {{ selectedTable()?.status === 'occupied' ? 'Occupied' : 'Available' }}
+                    {{ selectedTable()?.status === 'occupied' ? ('tables.canvas.occupied' | translate) : ('tables.canvas.available' | translate) }}
                   </div>
                 </div>
                 <button class="close-btn" (click)="selectedTable.set(null)">
@@ -360,11 +361,11 @@ interface TableShape {
               <div class="panel-body">
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Name</label>
+                    <label>{{ 'tables.canvas.name' | translate }}</label>
                     <input type="text" [(ngModel)]="selectedTableName" (blur)="updateSelectedTable()">
                   </div>
                   <div class="form-group">
-                    <label>Seats</label>
+                    <label>{{ 'tables.seats' | translate }}</label>
                     <input type="number" min="1" max="20" [(ngModel)]="selectedTableSeats" (blur)="updateSelectedTable()">
                   </div>
                 </div>
@@ -373,7 +374,7 @@ interface TableShape {
                     <polyline points="3,6 5,6 21,6"/>
                     <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                   </svg>
-                  Delete
+                  {{ 'tables.canvas.delete' | translate }}
                 </button>
               </div>
             </div>
@@ -385,7 +386,7 @@ interface TableShape {
           <div class="modal-overlay" (click)="showAddTableModal = false">
             <div class="modal-content" (click)="$event.stopPropagation()">
               <div class="modal-header">
-                <h3>Add Table</h3>
+                <h3>{{ 'tables.addTable' | translate }}</h3>
                 <button class="close-btn" (click)="showAddTableModal = false">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -414,14 +415,14 @@ interface TableShape {
                         }
                       </div>
                       <span>{{ shape.name }}</span>
-                      <small>{{ shape.seats }} seats</small>
+                      <small>{{ shape.seats }} {{ 'tables.seats' | translate }}</small>
                     </div>
                   }
                 </div>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-secondary" (click)="showAddTableModal = false">Cancel</button>
-                <button class="btn btn-primary" (click)="addTableFromModal()" [disabled]="!selectedShape">Add Table</button>
+                <button class="btn btn-secondary" (click)="showAddTableModal = false">{{ 'common.cancel' | translate }}</button>
+                <button class="btn btn-primary" (click)="addTableFromModal()" [disabled]="!selectedShape">{{ 'tables.addTable' | translate }}</button>
               </div>
             </div>
           </div>

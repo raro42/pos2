@@ -9,6 +9,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { SidebarComponent } from '../../shared/sidebar.component';
 import { InventoryService } from '../inventory.service';
 import {
@@ -24,17 +25,17 @@ import {
 @Component({
   selector: 'app-purchase-orders',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule, SidebarComponent],
+  imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule, SidebarComponent, TranslateModule],
   template: `
     <app-sidebar>
       <div class="page-header">
-        <h1>Purchase Orders</h1>
+        <h1>{{ 'inventory.purchaseOrders.title' | translate }}</h1>
         <div class="header-actions">
           <button class="btn btn-primary" (click)="openCreateModal()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Create PO
+            {{ 'inventory.purchaseOrders.addOrder' | translate }}
           </button>
         </div>
       </div>
@@ -43,13 +44,13 @@ import {
         <!-- Filters -->
         <div class="filters-bar">
           <select [(ngModel)]="statusFilter" (change)="loadOrders()">
-            <option value="">All Statuses</option>
+            <option value="">{{ 'common.all' | translate }} {{ 'inventory.purchaseOrders.table.status' | translate }}</option>
             @for (status of statuses; track status) {
-              <option [value]="status">{{ formatStatus(status) }}</option>
+              <option [value]="status">{{ formatStatus(status) | translate }}</option>
             }
           </select>
           <select [(ngModel)]="supplierFilter" (change)="loadOrders()">
-            <option value="">All Suppliers</option>
+            <option value="">{{ 'common.all' | translate }} {{ 'inventory.suppliers.title' | translate }}</option>
             @for (supplier of suppliers(); track supplier.id) {
               <option [value]="supplier.id">{{ supplier.name }}</option>
             }
@@ -57,7 +58,7 @@ import {
         </div>
 
         @if (loading()) {
-          <div class="empty-state"><p>Loading orders...</p></div>
+          <div class="empty-state"><p>{{ 'common.loading' | translate }}</p></div>
         } @else if (orders().length === 0) {
           <div class="empty-state">
             <div class="empty-icon">
@@ -66,21 +67,21 @@ import {
                 <polyline points="14,2 14,8 20,8"/>
               </svg>
             </div>
-            <h3>No purchase orders found</h3>
-            <p>Create your first purchase order to get started</p>
-            <button class="btn btn-primary" (click)="openCreateModal()">Create PO</button>
+            <h3>{{ 'inventory.purchaseOrders.noOrders' | translate }}</h3>
+            <p>{{ 'inventory.purchaseOrders.noOrdersSubtitle' | translate }}</p>
+            <button class="btn btn-primary" (click)="openCreateModal()">{{ 'inventory.purchaseOrders.createOrder' | translate }}</button>
           </div>
         } @else {
           <div class="table-card">
             <table>
               <thead>
                 <tr>
-                  <th>Order #</th>
-                  <th>Supplier</th>
-                  <th>Date</th>
-                  <th>Expected</th>
-                  <th>Total</th>
-                  <th>Status</th>
+                  <th>{{ 'inventory.purchaseOrders.table.orderNumber' | translate }}</th>
+                  <th>{{ 'inventory.purchaseOrders.table.supplier' | translate }}</th>
+                  <th>{{ 'inventory.purchaseOrders.table.date' | translate }}</th>
+                  <th>{{ 'inventory.purchaseOrders.table.expected' | translate }}</th>
+                  <th>{{ 'inventory.purchaseOrders.table.total' | translate }}</th>
+                  <th>{{ 'inventory.purchaseOrders.table.status' | translate }}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -94,7 +95,7 @@ import {
                     <td class="price">{{ formatCurrency(po.total_cents) }}</td>
                     <td>
                       <span class="status-badge" [class]="po.status">
-                        {{ formatStatus(po.status) }}
+                        {{ formatStatus(po.status) | translate }}
                       </span>
                     </td>
                     <td class="actions">
@@ -105,14 +106,14 @@ import {
                           <rect x="6" y="14" width="12" height="8"/>
                         </svg>
                       </button>
-                      <a [routerLink]="['/inventory/purchase-orders', po.id]" class="icon-btn" title="View">
+                      <a [routerLink]="['/inventory/purchase-orders', po.id]" class="icon-btn" [title]="'common.view' | translate">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                           <circle cx="12" cy="12" r="3"/>
                         </svg>
                       </a>
                       @if (po.status === 'draft') {
-                        <button class="icon-btn icon-btn-danger" title="Cancel" (click)="cancelOrder(po)">
+                        <button class="icon-btn icon-btn-danger" [title]="'common.cancel' | translate" (click)="cancelOrder(po)">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 6L6 18M6 6l12 12"/>
                           </svg>
@@ -132,7 +133,7 @@ import {
         <div class="modal-overlay" (click)="closeModal()">
           <div class="modal modal-lg" (click)="$event.stopPropagation()">
             <div class="form-header">
-              <h3>Create Purchase Order</h3>
+              <h3>{{ 'inventory.purchaseOrders.createOrder' | translate }}</h3>
               <button class="icon-btn" (click)="closeModal()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M18 6L6 18M6 6l12 12"/>
@@ -142,71 +143,71 @@ import {
             <form [formGroup]="createForm" (ngSubmit)="submitCreateForm()">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="supplier_id">Supplier *</label>
+                  <label for="supplier_id">{{ 'inventory.purchaseOrders.form.supplier' | translate }}</label>
                   <select id="supplier_id" formControlName="supplier_id" (change)="onSupplierChange()">
-                    <option value="">-- Select Supplier --</option>
+                    <option value="">{{ 'inventory.purchaseOrders.form.selectSupplier' | translate }}</option>
                     @for (supplier of suppliers(); track supplier.id) {
                       <option [value]="supplier.id">{{ supplier.name }}</option>
                     }
                   </select>
                 </div>
                 <div class="form-group">
-                  <label for="expected_date">Expected Delivery Date</label>
+                  <label for="expected_date">{{ 'inventory.purchaseOrders.form.expectedDate' | translate }}</label>
                   <input type="date" id="expected_date" formControlName="expected_date" />
                 </div>
               </div>
               <div class="form-group">
-                <label for="notes">Notes</label>
-                <textarea id="notes" formControlName="notes" rows="2" placeholder="Optional notes for this order"></textarea>
+                <label for="notes">{{ 'inventory.purchaseOrders.form.notes' | translate }}</label>
+                <textarea id="notes" formControlName="notes" rows="2" [placeholder]="'inventory.purchaseOrders.form.notesPlaceholder' | translate"></textarea>
               </div>
 
               <!-- Items Section -->
               <div class="items-section">
                 <div class="section-header">
-                  <h4>Order Items</h4>
+                  <h4>{{ 'inventory.purchaseOrders.form.items' | translate }}</h4>
                   <button type="button" class="btn btn-secondary btn-sm" (click)="addItem()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
-                    Add Item
+                    {{ 'inventory.purchaseOrders.form.addItem' | translate }}
                   </button>
                 </div>
 
                 @if (itemsArray.length === 0) {
                   <div class="empty-items">
-                    <p>No items added yet. Click "Add Item" to start.</p>
+                    <p>{{ 'inventory.purchaseOrders.form.noItems' | translate }}</p>
                   </div>
                 } @else {
                   <div class="items-list" formArrayName="items">
                     @for (item of itemsArray.controls; track $index; let i = $index) {
                       <div class="item-row" [formGroupName]="i">
                         <div class="item-select">
-                          <label>Item</label>
+                          <label>{{ 'inventory.purchaseOrders.form.item' | translate }}</label>
                           <select formControlName="inventory_item_id" (change)="onItemSelected(i)">
-                            <option value="">-- Select --</option>
+                            <option value="">{{ 'inventory.purchaseOrders.form.selectItem' | translate }}</option>
                             @for (invItem of filteredInventoryItems(); track invItem.id) {
                               <option [value]="invItem.id">{{ invItem.name }} ({{ invItem.sku }})</option>
                             }
                           </select>
                         </div>
                         <div class="item-qty">
-                          <label>Qty</label>
+                          <label>{{ 'inventory.purchaseOrders.form.qty' | translate }}</label>
                           <input type="number" formControlName="quantity_ordered" min="0.01" step="0.01" />
                         </div>
                         <div class="item-unit">
-                          <label>Unit</label>
+                          <label>{{ 'inventory.purchaseOrders.form.unit' | translate }}</label>
                           <select formControlName="unit">
                             @for (unit of units; track unit) {
-                              <option [value]="unit">{{ formatUnit(unit) }}</option>
+                              <option [value]="unit">{{ formatUnit(unit) | translate }}</option>
                             }
                           </select>
                         </div>
                         <div class="item-cost">
-                          <label>Unit Cost ($)</label>
+                          <label>{{ 'inventory.purchaseOrders.form.unitCost' | translate }}</label>
                           <input type="number" formControlName="unit_cost_dollars" min="0" step="0.01" placeholder="0.00" />
                         </div>
                         <div class="item-total">
-                          <label>Total</label>
+                          <label>{{ 'inventory.purchaseOrders.form.total' | translate }}</label>
                           <span>{{ formatCurrency(getItemTotal(i)) }}</span>
                         </div>
                         <button type="button" class="icon-btn icon-btn-danger" (click)="removeItem(i)">
@@ -220,15 +221,15 @@ import {
                 }
 
                 <div class="order-total">
-                  <span>Order Total:</span>
+                  <span>{{ 'inventory.purchaseOrders.form.orderTotal' | translate }}</span>
                   <strong>{{ formatCurrency(orderTotal()) }}</strong>
                 </div>
               </div>
 
               <div class="form-actions">
-                <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-secondary" (click)="closeModal()">{{ 'common.cancel' | translate }}</button>
                 <button type="submit" class="btn btn-primary" [disabled]="!createForm.valid || itemsArray.length === 0 || saving()">
-                  {{ saving() ? 'Creating...' : 'Create Order' }}
+                  {{ saving() ? ('inventory.purchaseOrders.createOrder' | translate) : ('inventory.purchaseOrders.createOrder' | translate) }}
                 </button>
               </div>
             </form>
@@ -237,6 +238,7 @@ import {
       }
     </app-sidebar>
   `,
+
   styles: [`
     .page-header {
       display: flex;
