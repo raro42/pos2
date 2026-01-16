@@ -145,6 +145,7 @@ import { TranslateModule } from '@ngx-translate/core';
       display: flex;
       min-height: 100vh;
       background: var(--color-bg);
+      overflow-x: hidden; /* Prevent horizontal scroll from child content */
     }
 
     /* Sidebar */
@@ -395,6 +396,8 @@ import { TranslateModule } from '@ngx-translate/core';
       margin-left: 240px;
       padding: var(--space-6);
       min-width: 0;
+      max-width: calc(100vw - 240px); /* Constrain to available space */
+      overflow-x: hidden; /* Prevent horizontal scroll */
     }
 
     @media (max-width: 768px) {
@@ -422,6 +425,7 @@ import { TranslateModule } from '@ngx-translate/core';
       .main {
         margin-left: 0;
         padding: calc(56px + var(--space-5)) var(--space-4) var(--space-4);
+        max-width: 100vw; /* Full width on mobile */
       }
     }
   `]

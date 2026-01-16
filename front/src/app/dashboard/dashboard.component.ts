@@ -90,7 +90,7 @@ import { TranslateModule } from '@ngx-translate/core';
 
     .quick-actions {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Increased from 200px */
       gap: var(--space-4);
     }
 

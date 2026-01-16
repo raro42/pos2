@@ -506,7 +506,8 @@ import { TranslateModule } from '@ngx-translate/core';
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow-x: auto; /* Enable horizontal scroll */
+      -webkit-overflow-scrolling: touch;
     }
 
     table { width: 100%; border-collapse: collapse; }
@@ -780,10 +781,10 @@ export class ProductsComponent implements OnInit {
 
   saveCategoryInline(product: Product) {
     if (!product.id || this.editingCategoryProductId() !== product.id) return;
-    
+
     const category = this.editingCategory || undefined;
     const subcategory = this.editingSubcategory || undefined;
-    
+
     // Only update if changed
     if (category === product.category && subcategory === product.subcategory) {
       this.cancelCategoryEdit();
@@ -792,14 +793,14 @@ export class ProductsComponent implements OnInit {
 
     this.saving.set(true);
     this.api.updateProduct(product.id, { category, subcategory }).subscribe({
-        next: (updated) => {
-          this.products.update(list => list.map(p => p.id === updated.id ? updated : p));
-          this.updateAvailableCategories();
-          this.updateAvailableSubcategories(this.selectedCategory());
-          this.applyFilters();
-          this.cancelCategoryEdit();
-          this.saving.set(false);
-        },
+      next: (updated) => {
+        this.products.update(list => list.map(p => p.id === updated.id ? updated : p));
+        this.updateAvailableCategories();
+        this.updateAvailableSubcategories(this.selectedCategory());
+        this.applyFilters();
+        this.cancelCategoryEdit();
+        this.saving.set(false);
+      },
       error: (err) => {
         this.error.set(err.error?.detail || 'Failed to update category');
         this.cancelCategoryEdit();
@@ -849,7 +850,7 @@ export class ProductsComponent implements OnInit {
   loadProducts() {
     this.loading.set(true);
     this.api.getProducts().subscribe({
-      next: (products) => { 
+      next: (products) => {
         this.products.set(products);
         this.updateAvailableCategories();
         this.applyFilters();
@@ -902,17 +903,17 @@ export class ProductsComponent implements OnInit {
 
   applyFilters() {
     let filtered = this.products();
-    
+
     // Filter by category
     if (this.selectedCategory()) {
       filtered = filtered.filter(p => p.category === this.selectedCategory());
     }
-    
+
     // Filter by subcategory
     if (this.selectedSubcategory()) {
       filtered = filtered.filter(p => p.subcategory === this.selectedSubcategory());
     }
-    
+
     this.filteredProducts.set(filtered);
   }
 
@@ -922,9 +923,9 @@ export class ProductsComponent implements OnInit {
       this.cancelCategoryEdit();
     }
     this.editingProduct.set(product);
-    this.formData = { 
-      name: product.name, 
-      price: product.price_cents / 100, 
+    this.formData = {
+      name: product.name,
+      price: product.price_cents / 100,
       ingredients: product.ingredients || '',
       category: product.category || '',
       subcategory: product.subcategory || ''
@@ -954,9 +955,9 @@ export class ProductsComponent implements OnInit {
     if (!this.formData.name || this.formData.price <= 0) return;
 
     this.saving.set(true);
-    const productData = { 
-      name: this.formData.name, 
-      price_cents: Math.round(this.formData.price * 100), 
+    const productData = {
+      name: this.formData.name,
+      price_cents: Math.round(this.formData.price * 100),
       ingredients: this.formData.ingredients || undefined,
       category: this.formData.category || undefined,
       subcategory: this.formData.subcategory || undefined
@@ -965,12 +966,12 @@ export class ProductsComponent implements OnInit {
     const editing = this.editingProduct();
     if (editing?.id) {
       this.api.updateProduct(editing.id, productData).subscribe({
-        next: (updated) => { 
+        next: (updated) => {
           this.products.update(list => list.map(p => p.id === updated.id ? updated : p));
           this.updateAvailableCategories();
           this.applyFilters();
-          this.cancelForm(); 
-          this.saving.set(false); 
+          this.cancelForm();
+          this.saving.set(false);
         },
         error: (err) => { this.error.set(err.error?.detail || 'Failed to update'); this.saving.set(false); }
       });
@@ -1015,11 +1016,11 @@ export class ProductsComponent implements OnInit {
     this.deleting.set(product.id);
     this.productToDelete.set(null);
     this.api.deleteProduct(product.id).subscribe({
-      next: () => { 
+      next: () => {
         this.products.update(list => list.filter(p => p.id !== product.id));
         this.updateAvailableCategories();
         this.applyFilters();
-        this.deleting.set(null); 
+        this.deleting.set(null);
       },
       error: (err) => { this.error.set(err.error?.detail || 'Failed to delete'); this.deleting.set(null); }
     });

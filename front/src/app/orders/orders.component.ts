@@ -495,7 +495,17 @@ ModuleRegistry.registerModules([
       p { margin: 0; color: var(--color-text-muted); }
     }
 
-    .order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-4); }
+    .order-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Reduced from 320px for better mobile */
+      gap: var(--space-4); 
+    }
+    
+    .grid-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
     .order-card {
       background: none; 
@@ -974,6 +984,12 @@ ModuleRegistry.registerModules([
       .close-btn { display: block; }
       .main { margin-left: 0; padding: calc(56px + var(--space-4)) var(--space-4) var(--space-4); }
       .order-grid { grid-template-columns: 1fr; }
+      
+      .grid-container {
+        margin-left: calc(-1 * var(--space-4));
+        margin-right: calc(-1 * var(--space-4));
+        padding: 0 var(--space-4);
+      }
       
       .status-dropdown {
         right: 0;

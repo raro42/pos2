@@ -1,3 +1,6 @@
+// Responsive breakpoint mixins
+@use 'styles/breakpoints' as *;
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
@@ -57,7 +60,10 @@ body {
 a {
   color: var(--color-primary);
   text-decoration: none;
-  &:hover { text-decoration: underline; }
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 button {
@@ -65,7 +71,9 @@ button {
   cursor: pointer;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: var(--font-sans);
   font-size: 1rem;
 }
@@ -75,6 +83,114 @@ input, textarea, select {
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-5);
+}
+
+// ============================================
+// RESPONSIVE UTILITY CLASSES
+// ============================================
+
+// Prevent horizontal overflow on page/containers
+.overflow-hidden {
+  overflow-x: hidden;
+}
+
+// Responsive table wrapper - enables horizontal scroll for tables
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  // Ensure minimum touch target and visual feedback
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+}
+
+// Visibility utilities
+.hide-phone {
+  @include for-phone-only {
+    display: none !important;
+  }
+}
+
+.hide-tablet {
+  @include for-tablet-only {
+    display: none !important;
+  }
+}
+
+.hide-desktop {
+  @include for-desktop-up {
+    display: none !important;
+  }
+}
+
+.show-phone-only {
+  display: none !important;
+
+  @include for-phone-only {
+    display: block !important;
+  }
+}
+
+.show-tablet-only {
+  display: none !important;
+
+  @include for-tablet-only {
+    display: block !important;
+  }
+}
+
+.show-desktop-only {
+  display: none !important;
+
+  @include for-desktop-up {
+    display: block !important;
+  }
+}
+
+// Responsive grid utilities
+.grid-responsive {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+
+  @include for-tablet-portrait-up {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+
+  @include for-phone-landscape-up {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include for-tablet-landscape-up {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include for-desktop-up {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// Stack elements on mobile
+.stack-mobile {
+  @include for-phone-only {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+// Text truncation utility
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card {
@@ -106,20 +222,27 @@ input, textarea, select {
 .btn-primary {
   background: var(--color-primary);
   color: white;
-  &:hover:not(:disabled) { background: var(--color-primary-hover); }
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
 }
 
 .btn-secondary {
   background: var(--color-bg);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  &:hover:not(:disabled) { background: var(--color-border); }
+
+  &:hover:not(:disabled) {
+    background: var(--color-border);
+  }
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--color-text-muted);
-  &:hover:not(:disabled) { 
+
+  &:hover:not(:disabled) {
     background: var(--color-bg);
     color: var(--color-text);
   }
@@ -176,5 +299,8 @@ input, textarea, select {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 4px;
-  &:hover { background: var(--color-text-muted); }
+
+  &:hover {
+    background: var(--color-text-muted);
+  }
 }
