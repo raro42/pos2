@@ -319,7 +319,11 @@ import { TranslateModule } from '@ngx-translate/core';
     </app-sidebar>
   `,
   styles: [`
-    /* Page Header - Same as Products/Catalog */
+    /* ==========================================
+       MOBILE-FIRST RESPONSIVE SETTINGS STYLES
+       ========================================== */
+    
+    /* Page Header */
     .page-header {
       display: flex;
       justify-content: space-between;
@@ -327,40 +331,48 @@ import { TranslateModule } from '@ngx-translate/core';
       margin-bottom: var(--space-4);
 
       h1 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 600;
         color: var(--color-text);
         margin: 0;
       }
     }
+    
+    @media (min-width: 640px) {
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
+    }
 
-    /* Tabs - Mobile First (Horizontal Scrollable) */
+    /* ==========================================
+       TABS - Mobile First (Horizontal Scroll)
+       ========================================== */
     .tabs-container {
       margin-bottom: var(--space-4);
       margin-left: calc(-1 * var(--space-4));
       margin-right: calc(-1 * var(--space-4));
       padding: 0 var(--space-4);
       overflow-x: auto;
-      scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
-    }
-    
-    .tabs-container::-webkit-scrollbar {
-      display: none;
+      display: block;
+      max-width: calc(100% + (2 * var(--space-4)));
     }
 
     .tabs {
       display: flex;
       gap: var(--space-2);
-      padding-bottom: var(--space-2);
-      min-width: max-content;
+      padding-bottom: var(--space-3);
+      width: max-content;
+      min-width: 100%;
     }
 
+    /* Mobile: Icon-only tabs with smaller padding */
     .tab {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: var(--space-2);
-      padding: var(--space-3) var(--space-4);
+      padding: var(--space-3);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -370,6 +382,14 @@ import { TranslateModule } from '@ngx-translate/core';
       white-space: nowrap;
       cursor: pointer;
       transition: all 0.15s ease;
+      min-height: 44px; /* Touch-friendly minimum */
+      min-width: 44px;
+      flex-shrink: 0;
+    }
+
+    /* Hide text on small screens */
+    .tab span {
+      display: none;
     }
 
     .tab:hover {
@@ -384,28 +404,51 @@ import { TranslateModule } from '@ngx-translate/core';
     }
 
     .tab-icon {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       flex-shrink: 0;
     }
 
-    /* Content Area */
-    .content {
-      /* Full width, no constraints */
+    /* Tablet+: Show text labels */
+    @media (min-width: 480px) {
+      .tab {
+        padding: var(--space-3) var(--space-4);
+      }
+      
+      .tab span {
+        display: inline;
+      }
+      
+      .tab-icon {
+        width: 18px;
+        height: 18px;
+      }
     }
 
-    /* Section Styling */
+    /* ==========================================
+       SECTION STYLING
+       ========================================== */
+    .content {
+      /* Full width container */
+    }
+
     .section {
-      margin-bottom: var(--space-6);
+      margin-bottom: var(--space-5);
+    }
+    
+    @media (min-width: 640px) {
+      .section {
+        margin-bottom: var(--space-6);
+      }
     }
 
     .section-header {
-      margin-bottom: var(--space-5);
-      padding-bottom: var(--space-4);
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
       border-bottom: 1px solid var(--color-border);
 
       h2 {
-        font-size: 1.25rem;
+        font-size: 1.125rem;
         font-weight: 600;
         margin: 0 0 var(--space-1) 0;
         color: var(--color-text);
@@ -413,21 +456,39 @@ import { TranslateModule } from '@ngx-translate/core';
 
       p {
         color: var(--color-text-muted);
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         margin: 0;
       }
     }
+    
+    @media (min-width: 640px) {
+      .section-header {
+        margin-bottom: var(--space-5);
+        padding-bottom: var(--space-4);
+      }
+      
+      .section-header h2 {
+        font-size: 1.25rem;
+      }
+      
+      .section-header p {
+        font-size: 0.875rem;
+      }
+    }
 
-    /* Forms */
+    /* ==========================================
+       FORM ELEMENTS - Mobile First
+       ========================================== */
     .form-row {
       display: flex;
       flex-direction: column;
-      gap: var(--space-4);
+      gap: var(--space-3);
     }
 
     @media (min-width: 640px) {
       .form-row {
         flex-direction: row;
+        gap: var(--space-4);
       }
       
       .form-row .form-group {
@@ -439,7 +500,7 @@ import { TranslateModule } from '@ngx-translate/core';
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
-      margin-bottom: var(--space-4);
+      margin-bottom: var(--space-3);
 
       label {
         font-size: 0.875rem;
@@ -452,9 +513,10 @@ import { TranslateModule } from '@ngx-translate/core';
         padding: var(--space-3);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-md);
-        font-size: 0.9375rem;
+        font-size: 1rem; /* 16px prevents zoom on iOS */
         background: var(--color-surface);
         color: var(--color-text);
+        min-height: 44px; /* Touch-friendly */
 
         &:focus {
           outline: none;
@@ -465,42 +527,68 @@ import { TranslateModule } from '@ngx-translate/core';
 
       textarea {
         resize: vertical;
-        min-height: 80px;
+        min-height: 100px;
       }
 
       .input-short {
-        max-width: 120px;
+        max-width: 100%;
       }
 
       .code-input {
         font-family: monospace;
+        font-size: 0.875rem;
+      }
+    }
+
+    @media (min-width: 640px) {
+      .form-group {
+        margin-bottom: var(--space-4);
+      }
+      
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        font-size: 0.9375rem;
+      }
+      
+      .form-group .input-short {
+        max-width: 120px;
       }
     }
 
     .hint {
-      font-size: 0.8125rem;
+      font-size: 0.75rem;
       color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+    
+    @media (min-width: 640px) {
+      .hint {
+        font-size: 0.8125rem;
+      }
     }
 
-    /* Logo Upload */
+    /* ==========================================
+       LOGO UPLOAD - Mobile First
+       ========================================== */
     .logo-upload-wrapper {
       display: flex;
       flex-direction: column;
       gap: var(--space-4);
-      align-items: flex-start;
+      align-items: center;
     }
     
-    @media (min-width: 640px) {
+    @media (min-width: 480px) {
       .logo-upload-wrapper {
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
       }
     }
 
     .current-logo {
       position: relative;
-      width: 100px;
-      height: 100px;
+      width: 120px;
+      height: 120px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
       padding: var(--space-2);
@@ -508,6 +596,7 @@ import { TranslateModule } from '@ngx-translate/core';
       align-items: center;
       justify-content: center;
       background: var(--color-surface);
+      flex-shrink: 0;
 
       img {
         max-width: 100%;
@@ -517,10 +606,10 @@ import { TranslateModule } from '@ngx-translate/core';
 
       .btn-icon-danger {
         position: absolute;
-        top: -8px;
-        right: -8px;
-        width: 24px;
-        height: 24px;
+        top: -10px;
+        right: -10px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: var(--color-error);
         color: white;
@@ -529,6 +618,22 @@ import { TranslateModule } from '@ngx-translate/core';
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 14px;
+        touch-action: manipulation;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .current-logo {
+        width: 100px;
+        height: 100px;
+      }
+      
+      .current-logo .btn-icon-danger {
+        width: 24px;
+        height: 24px;
+        top: -8px;
+        right: -8px;
         font-size: 12px;
       }
     }
@@ -537,9 +642,20 @@ import { TranslateModule } from '@ngx-translate/core';
       display: flex;
       flex-direction: column;
       gap: var(--space-2);
+      align-items: center;
+      text-align: center;
+    }
+    
+    @media (min-width: 480px) {
+      .upload-controls {
+        align-items: flex-start;
+        text-align: left;
+      }
     }
 
-    /* Hours Grid */
+    /* ==========================================
+       OPENING HOURS - Mobile First
+       ========================================== */
     .hours-grid {
       display: flex;
       flex-direction: column;
@@ -550,10 +666,16 @@ import { TranslateModule } from '@ngx-translate/core';
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
-      padding: var(--space-4);
+      padding: var(--space-3);
 
       &.closed {
         opacity: 0.7;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .day-row {
+        padding: var(--space-4);
       }
     }
 
@@ -561,17 +683,28 @@ import { TranslateModule } from '@ngx-translate/core';
       display: flex;
       align-items: center;
       gap: var(--space-3);
-      margin-bottom: var(--space-3);
+      margin-bottom: var(--space-2);
     }
 
     .day-name {
       font-weight: 500;
+      font-size: 0.9375rem;
     }
 
+    /* Mobile: Stack hours below header */
     .hours-inputs {
-      padding-left: 52px; /* Switch width + gap */
+      padding-left: 0;
+      margin-top: var(--space-3);
+    }
+    
+    @media (min-width: 480px) {
+      .hours-inputs {
+        padding-left: 52px; /* Switch width + gap */
+        margin-top: 0;
+      }
     }
 
+    /* Mobile: Full-width time inputs */
     .time-range {
       display: flex;
       align-items: center;
@@ -579,41 +712,104 @@ import { TranslateModule } from '@ngx-translate/core';
       flex-wrap: wrap;
 
       input {
-        width: 110px;
-        padding: var(--space-2);
+        flex: 1;
+        min-width: 90px;
+        max-width: 120px;
+        padding: var(--space-2) var(--space-3);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-sm);
+        font-size: 1rem; /* Prevents iOS zoom */
+        min-height: 40px;
+        text-align: center;
+      }
+      
+      span {
+        color: var(--color-text-muted);
+        font-weight: 500;
+      }
+    }
+    
+    @media (min-width: 480px) {
+      .time-range input {
+        flex: 0 0 auto;
+        width: 110px;
+        min-width: unset;
       }
     }
 
+    /* Split Shifts - Mobile First (Stacked) */
     .split-shifts {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
+      gap: var(--space-4);
 
       .shift {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: var(--space-2);
-        flex-wrap: wrap;
+        padding: var(--space-3);
+        background: var(--color-bg);
+        border-radius: var(--radius-sm);
 
         .shift-label {
-          width: 60px;
           font-size: 0.75rem;
+          font-weight: 600;
           color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .shift-times {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          flex-wrap: wrap;
         }
 
         input {
-          width: 100px;
-          padding: var(--space-2);
+          flex: 1;
+          min-width: 80px;
+          max-width: 110px;
+          padding: var(--space-2) var(--space-3);
           border: 1px solid var(--color-border);
           border-radius: var(--radius-sm);
+          font-size: 1rem;
+          min-height: 40px;
+          text-align: center;
+        }
+      }
+    }
+    
+    @media (min-width: 480px) {
+      .split-shifts .shift {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2);
+        background: transparent;
+        
+        .shift-label {
+          width: 60px;
+          text-transform: none;
+          font-weight: 500;
+        }
+        
+        .shift-times {
+          flex-wrap: nowrap;
+        }
+        
+        input {
+          flex: 0 0 auto;
+          width: 100px;
+          min-width: unset;
         }
       }
     }
 
     .break-option {
       margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px dashed var(--color-border);
     }
     
     .checkbox-small {
@@ -622,24 +818,35 @@ import { TranslateModule } from '@ngx-translate/core';
       gap: var(--space-2);
       font-size: 0.875rem;
       cursor: pointer;
+      min-height: 44px; /* Touch target */
+      
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
     }
 
     .closed-badge {
       display: inline-block;
-      padding: var(--space-1) var(--space-3);
+      padding: var(--space-2) var(--space-3);
       background: var(--color-bg);
       border-radius: var(--radius-sm);
       font-size: 0.8125rem;
       color: var(--color-text-muted);
+      margin-left: auto;
     }
 
-    /* Switches */
+    /* ==========================================
+       SWITCHES - Touch-Friendly
+       ========================================== */
     .switch {
       position: relative;
       display: inline-block;
-      width: 40px;
-      height: 24px;
+      width: 48px;
+      height: 28px;
       flex-shrink: 0;
+      touch-action: manipulation;
 
       input {
         opacity: 0;
@@ -660,12 +867,13 @@ import { TranslateModule } from '@ngx-translate/core';
         &:before {
           position: absolute;
           content: "";
-          height: 18px;
-          width: 18px;
+          height: 22px;
+          width: 22px;
           left: 3px;
           bottom: 3px;
           background-color: white;
           transition: .3s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
       }
 
@@ -674,7 +882,7 @@ import { TranslateModule } from '@ngx-translate/core';
       }
 
       input:checked + .slider:before {
-        transform: translateX(16px);
+        transform: translateX(20px);
       }
 
       .slider.round {
@@ -685,47 +893,98 @@ import { TranslateModule } from '@ngx-translate/core';
         border-radius: 50%;
       }
     }
+    
+    @media (min-width: 640px) {
+      .switch {
+        width: 40px;
+        height: 24px;
+      }
+      
+      .switch .slider:before {
+        height: 18px;
+        width: 18px;
+      }
+      
+      .switch input:checked + .slider:before {
+        transform: translateX(16px);
+      }
+    }
 
     .checkbox-row {
-      flex-direction: row;
-      align-items: flex-start;
+      flex-direction: column;
       gap: var(--space-3);
+    }
+    
+    @media (min-width: 480px) {
+      .checkbox-row {
+        flex-direction: row;
+        align-items: flex-start;
+      }
     }
 
     .check-label {
       font-weight: 500;
     }
 
-    /* Divider */
+    /* ==========================================
+       DIVIDERS & HEADINGS
+       ========================================== */
     .divider {
       height: 1px;
       background: var(--color-border);
-      margin: var(--space-5) 0;
+      margin: var(--space-4) 0;
+    }
+    
+    @media (min-width: 640px) {
+      .divider {
+        margin: var(--space-5) 0;
+      }
     }
 
     h3 {
-      font-size: 1rem;
+      font-size: 0.9375rem;
       font-weight: 600;
-      margin: 0 0 var(--space-4) 0;
+      margin: 0 0 var(--space-3) 0;
+    }
+    
+    @media (min-width: 640px) {
+      h3 {
+        font-size: 1rem;
+        margin: 0 0 var(--space-4) 0;
+      }
     }
 
-    /* Buttons */
+    /* ==========================================
+       BUTTONS - Touch-Friendly
+       ========================================== */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: var(--space-2);
-      padding: var(--space-3) var(--space-4);
+      padding: var(--space-3) var(--space-5);
       border: none;
       border-radius: var(--radius-md);
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.15s ease;
+      min-height: 48px; /* Touch-friendly */
+      touch-action: manipulation;
+      width: 100%;
 
       &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+    }
+    
+    @media (min-width: 640px) {
+      .btn {
+        min-height: 44px;
+        padding: var(--space-3) var(--space-4);
+        font-size: 0.875rem;
+        width: auto;
       }
     }
 
@@ -735,6 +994,10 @@ import { TranslateModule } from '@ngx-translate/core';
 
       &:hover:not(:disabled) {
         background: var(--color-primary-hover);
+      }
+      
+      &:active:not(:disabled) {
+        transform: scale(0.98);
       }
     }
 
@@ -746,33 +1009,49 @@ import { TranslateModule } from '@ngx-translate/core';
       &:hover:not(:disabled) {
         background: var(--color-bg);
       }
+      
+      &:active:not(:disabled) {
+        transform: scale(0.98);
+      }
     }
 
-    /* Form Actions */
+    /* ==========================================
+       FORM ACTIONS - Mobile First
+       ========================================== */
     .form-actions {
       display: flex;
-      flex-direction: column-reverse;
+      flex-direction: column;
       gap: var(--space-3);
-      padding-top: var(--space-5);
+      padding-top: var(--space-4);
       border-top: 1px solid var(--color-border);
-      margin-top: var(--space-5);
+      margin-top: var(--space-4);
     }
 
     @media (min-width: 640px) {
       .form-actions {
         flex-direction: row;
         justify-content: flex-end;
+        padding-top: var(--space-5);
+        margin-top: var(--space-5);
       }
     }
 
-    /* Loading */
+    /* ==========================================
+       LOADING STATE
+       ========================================== */
     .loading-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: var(--space-8);
+      padding: var(--space-6);
       color: var(--color-text-muted);
+    }
+    
+    @media (min-width: 640px) {
+      .loading-state {
+        padding: var(--space-8);
+      }
     }
 
     .spinner {
@@ -789,12 +1068,14 @@ import { TranslateModule } from '@ngx-translate/core';
       to { transform: rotate(360deg); }
     }
 
-    /* Toasts */
+    /* ==========================================
+       TOASTS - Mobile First
+       ========================================== */
     .toast {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      left: 20px;
+      bottom: env(safe-area-inset-bottom, 16px);
+      right: var(--space-4);
+      left: var(--space-4);
       padding: var(--space-4);
       border-radius: var(--radius-md);
       color: white;

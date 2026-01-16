@@ -289,7 +289,7 @@ export class ApiService {
   login(credentials: FormData): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/token`, credentials).pipe(
       tap(() => {
-        this.checkAuth();
+        this.checkAuth().subscribe();
       })
     );
   }

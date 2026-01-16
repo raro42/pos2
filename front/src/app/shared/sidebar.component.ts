@@ -159,6 +159,7 @@ import { TranslateModule } from '@ngx-translate/core';
       left: 0;
       top: 0;
       z-index: 100;
+      flex-shrink: 0;
     }
 
     .sidebar-header {
@@ -393,6 +394,7 @@ import { TranslateModule } from '@ngx-translate/core';
       flex: 1;
       margin-left: 240px;
       padding: var(--space-6);
+      min-width: 0;
     }
 
     @media (max-width: 768px) {
