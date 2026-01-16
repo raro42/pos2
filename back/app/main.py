@@ -3319,7 +3319,8 @@ def remove_order_item(
         raise HTTPException(status_code=404, detail="Order not found")
     
     # Security: Validate that order belongs to this session
-    if session_id and order.session_id and order.session_id != session_id:
+    # If order has a session_id, request must provide matching session_id
+    if order.session_id and order.session_id != session_id:
         raise HTTPException(status_code=403, detail="Order does not belong to this session")
     
     item = session.exec(
@@ -3407,7 +3408,8 @@ def update_order_item_quantity(
         raise HTTPException(status_code=404, detail="Order not found")
     
     # Security: Validate that order belongs to this session
-    if session_id and order.session_id and order.session_id != session_id:
+    # If order has a session_id, request must provide matching session_id
+    if order.session_id and order.session_id != session_id:
         raise HTTPException(status_code=403, detail="Order does not belong to this session")
     
     item = session.exec(
@@ -3496,7 +3498,8 @@ def cancel_order(
         raise HTTPException(status_code=404, detail="Order not found")
     
     # Security: Validate that order belongs to this session
-    if session_id and order.session_id and order.session_id != session_id:
+    # If order has a session_id, request must provide matching session_id
+    if order.session_id and order.session_id != session_id:
         raise HTTPException(status_code=403, detail="Order does not belong to this session")
     
     # Validation: Cannot cancel if any items are being prepared, ready, or delivered
@@ -3675,6 +3678,27 @@ def confirm_payment(
         )
         if intent.status != "succeeded":
             raise HTTPException(status_code=400, detail="Payment not completed")
+
+        # Validation: Verify intent matches order
+        # 1. Check order ID in metadata
+        intent_order_id = intent.metadata.get("order_id")
+        if not intent_order_id or str(intent_order_id) != str(order.id):
+            raise HTTPException(
+                status_code=400,
+                detail="Payment mismatch: Payment does not belong to this order",
+            )
+
+        # 2. Check amount
+        items = session.exec(
+            select(models.OrderItem).where(models.OrderItem.order_id == order_id)
+        ).all()
+        total_cents = sum(item.price_cents * item.quantity for item in items)
+
+        if intent.amount != total_cents:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payment mismatch: Amount {intent.amount} does not match order total {total_cents}",
+            )
 
         # Mark order as paid
         order.status = models.OrderStatus.paid
