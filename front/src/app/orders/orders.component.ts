@@ -6,7 +6,7 @@ import { AudioService } from '../services/audio.service';
 import { Subscription } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
 import { SidebarComponent } from '../shared/sidebar.component';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
   ColDef,
   ModuleRegistry,
@@ -429,6 +429,53 @@ ModuleRegistry.registerModules([
             </div>
           </div>
         }
+
+        <!-- Confirmation Modal (replaces native confirm/prompt) -->
+        @if (confirmAction()) {
+          <div class="modal-overlay" (click)="closeConfirmModal()">
+            <div class="modal" (click)="$event.stopPropagation()">
+              <div class="modal-header">
+                <h3>{{ 'COMMON.CONFIRM' | translate }}</h3>
+                <button class="icon-btn" (click)="closeConfirmModal()">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="modal-body">
+                <p>{{ confirmAction()!.message }}</p>
+                @if (confirmAction()!.requireReason) {
+                  <div class="form-group">
+                    <textarea 
+                      class="form-textarea"
+                      [(ngModel)]="confirmReason"
+                      rows="3"
+                      [placeholder]="'COMMON.DESCRIPTION' | translate"
+                    ></textarea>
+                  </div>
+                }
+              </div>
+              <div class="modal-actions">
+                <button class="btn btn-secondary" (click)="closeConfirmModal()">{{ 'COMMON.CANCEL' | translate }}</button>
+                <button class="btn btn-primary" (click)="handleConfirm()">
+                  {{ confirmAction()!.confirmText || ('COMMON.CONFIRM' | translate) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Toast Notification -->
+        @if (toast()) {
+          <div class="toast" [class]="toast()!.type">
+            <span>{{ toast()!.message }}</span>
+            <button class="toast-close" (click)="toast.set(null)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        }
     </app-sidebar>
   `,
   styles: [`
@@ -508,11 +555,18 @@ ModuleRegistry.registerModules([
     }
 
     .order-card {
-      background: none; 
-      border: none; 
-      border-left: 3px solid transparent;
-      border-radius: 0;
-      overflow: visible;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-left: 4px solid transparent;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      max-width: 100%;
+      &:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
       &.status-pending { border-left-color: var(--color-warning); }
       &.status-preparing { border-left-color: #3B82F6; }
       &.status-ready { border-left-color: var(--color-success); }
@@ -1001,12 +1055,78 @@ ModuleRegistry.registerModules([
         left: auto;
       }
     }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: var(--space-6);
+      right: var(--space-6);
+      padding: var(--space-4) var(--space-5);
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      z-index: 1100;
+      animation: slideInUp 0.3s ease;
+      max-width: 400px;
+      border-left: 4px solid var(--color-text-muted);
+    }
+    .toast.success {
+      border-left-color: var(--color-success);
+    }
+    .toast.error {
+      border-left-color: var(--color-error);
+    }
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      transition: color 0.15s;
+    }
+    .toast-close:hover {
+      color: var(--color-text);
+    }
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Form textarea */
+    .form-textarea {
+      width: 100%;
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 0.9375rem;
+      font-family: var(--font-sans);
+      background: var(--color-surface);
+      color: var(--color-text);
+      resize: vertical;
+      min-height: 80px;
+    }
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
   `]
 })
 export class OrdersComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
   private audio = inject(AudioService);
+  private translate = inject(TranslateService);
 
   // Get browser's timezone automatically
   private getBrowserTimezone(): string {
@@ -1023,6 +1143,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
     }
   }
   private wsSub?: Subscription;
+  private toastTimeout?: ReturnType<typeof setTimeout>;
+  private quantityDebounceTimeout?: ReturnType<typeof setTimeout>;
 
   orders = signal<Order[]>([]);
   loading = signal(true);
@@ -1035,6 +1157,21 @@ export class OrdersComponent implements OnInit, OnDestroy {
   processingPayment = signal(false);
   statusDropdownOpen = signal<number | null>(null); // Order ID for which dropdown is open
   itemStatusDropdownOpen = signal<string | null>(null); // "orderId-itemId" for which dropdown is open
+
+  // Toast notification system (replaces native alerts)
+  toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Confirmation modal (replaces native confirm)
+  confirmAction = signal<{
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    requireReason?: boolean;
+  } | null>(null);
+  confirmReason = '';
+
+  // Loading state for async actions
+  loadingAction = signal<string | null>(null);
 
   // Computed signals for separating active and completed orders
   activeOrders = computed(() =>
@@ -1080,24 +1217,24 @@ export class OrdersComponent implements OnInit, OnDestroy {
     return [
       {
         field: 'id',
-        headerName: 'Order #',
+        headerName: this.translate.instant('ORDERS.GRID.ORDER_NUMBER'),
         width: 100,
         valueFormatter: (params) => `#${params.value}`,
       },
       {
         field: 'table_name',
-        headerName: 'Table',
+        headerName: this.translate.instant('ORDERS.GRID.TABLE'),
         width: 120,
       },
       {
         field: 'customer_name',
-        headerName: 'Customer',
+        headerName: this.translate.instant('ORDERS.GRID.CUSTOMER'),
         width: 150,
         valueFormatter: (params) => params.value || '-',
       },
       {
         field: 'items',
-        headerName: 'Items',
+        headerName: this.translate.instant('ORDERS.GRID.ITEMS'),
         flex: 1,
         valueFormatter: (params) => {
           if (!params.value) return '';
@@ -1106,7 +1243,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
       },
       {
         field: 'total_cents',
-        headerName: 'Total',
+        headerName: this.translate.instant('ORDERS.GRID.TOTAL'),
         width: 110,
         valueFormatter: (params) => {
           if (params.value == null) return '';
@@ -1115,10 +1252,11 @@ export class OrdersComponent implements OnInit, OnDestroy {
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: this.translate.instant('ORDERS.GRID.STATUS'),
         width: 120,
         cellRenderer: (params: ICellRendererParams) => {
           const status = params.value;
+          const statusLabel = this.translate.instant(`ORDER_STATUS.${status}`) || status;
           const colorMap: Record<string, string> = {
             completed: '#78716C',  // matches --color-text-muted
             paid: '#16A34A',       // matches --color-success
@@ -1132,14 +1270,13 @@ export class OrdersComponent implements OnInit, OnDestroy {
             font-weight: 600;
             background: ${color}20;
             color: ${color};
-            text-transform: capitalize;
             line-height: 1.4;
-          ">${status}</span>`;
+          ">${statusLabel}</span>`;
         },
       },
       {
         field: 'created_at',
-        headerName: 'Date',
+        headerName: this.translate.instant('ORDERS.GRID.DATE'),
         width: 220,
         valueFormatter: (params) => {
           if (!params.value) return '';
@@ -1216,27 +1353,44 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   getStatusLabel(status: string): string {
-    const labels: Record<string, string> = {
-      pending: 'Pending',
-      preparing: 'Preparing',
-      ready: 'Ready',
-      partially_delivered: 'Partially Delivered',
-      paid: 'Paid',
-      completed: 'Delivered',
-      cancelled: 'Cancelled'
-    };
-    return labels[status] || status;
+    return this.translate.instant(`ORDER_STATUS.${status}`) || status;
   }
 
   getItemStatusLabel(status: string): string {
-    const labels: Record<string, string> = {
-      pending: 'Pending',
-      preparing: 'Preparing',
-      ready: 'Ready',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled'
-    };
-    return labels[status] || status;
+    return this.translate.instant(`ITEM_STATUS.${status}`) || status;
+  }
+
+  showToast(message: string, type: 'success' | 'error') {
+    if (this.toastTimeout) {
+      clearTimeout(this.toastTimeout);
+    }
+    this.toast.set({ message, type });
+    this.toastTimeout = setTimeout(() => {
+      this.toast.set(null);
+    }, 4000);
+  }
+
+  openConfirmModal(message: string, onConfirm: () => void, options?: { confirmText?: string; requireReason?: boolean }) {
+    this.confirmReason = '';
+    this.confirmAction.set({
+      message,
+      onConfirm,
+      confirmText: options?.confirmText,
+      requireReason: options?.requireReason
+    });
+  }
+
+  closeConfirmModal() {
+    this.confirmAction.set(null);
+    this.confirmReason = '';
+  }
+
+  handleConfirm() {
+    const action = this.confirmAction();
+    if (action) {
+      action.onConfirm();
+      this.closeConfirmModal();
+    }
   }
 
   formatTime(isoString: string): string {
@@ -1428,7 +1582,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Failed to update item status:', err);
-        alert('Failed to update item status');
+        this.showToast(this.translate.instant('ORDERS.FAILED_TO_UPDATE_STATUS'), 'error');
       }
     });
   }
@@ -1438,69 +1592,86 @@ export class OrdersComponent implements OnInit, OnDestroy {
       next: () => {
         this.loadOrders();
       },
-      error: (err) => {
-        const errorMsg = err.error?.detail || 'Failed to reset item status';
-        alert(errorMsg);
+      error: () => {
+        this.showToast(this.translate.instant('ORDERS.FAILED_TO_RESET_STATUS'), 'error');
       }
     });
   }
 
   cancelItemWithReason(orderId: number, itemId: number) {
-    const reason = prompt('Reason for cancellation (required for tax reporting):');
-    if (!reason || !reason.trim()) {
-      alert('Reason is required when cancelling ready items');
-      return;
-    }
-    this.api.cancelOrderItemStaff(orderId, itemId, reason).subscribe({
-      next: () => {
-        this.loadOrders();
+    this.openConfirmModal(
+      this.translate.instant('ORDERS.CANCELLATION_REASON'),
+      () => {
+        if (!this.confirmReason.trim()) {
+          this.showToast(this.translate.instant('ORDERS.REASON_REQUIRED'), 'error');
+          return;
+        }
+        this.api.cancelOrderItemStaff(orderId, itemId, this.confirmReason).subscribe({
+          next: () => {
+            this.loadOrders();
+          },
+          error: () => {
+            this.showToast(this.translate.instant('ORDERS.FAILED_TO_CANCEL_ITEM'), 'error');
+          }
+        });
       },
-      error: (err) => {
-        const errorMsg = err.error?.detail || 'Failed to cancel item';
-        alert(errorMsg);
-      }
-    });
+      { requireReason: true, confirmText: this.translate.instant('COMMON.CONFIRM') }
+    );
   }
 
   updateItemQuantity(orderId: number, itemId: number, quantity: number) {
     if (quantity <= 0) {
-      alert('Quantity must be at least 1');
+      this.showToast(this.translate.instant('ORDERS.QUANTITY_MIN_ERROR'), 'error');
       return;
     }
-    this.api.updateOrderItemQuantityStaff(orderId, itemId, quantity).subscribe({
-      next: () => {
-        this.loadOrders();
-      },
-      error: (err) => {
-        const errorMsg = err.error?.detail || 'Failed to update quantity';
-        alert(errorMsg);
-      }
-    });
+    // Debounce quantity updates to avoid too many API calls
+    if (this.quantityDebounceTimeout) {
+      clearTimeout(this.quantityDebounceTimeout);
+    }
+    this.quantityDebounceTimeout = setTimeout(() => {
+      this.api.updateOrderItemQuantityStaff(orderId, itemId, quantity).subscribe({
+        next: () => {
+          this.loadOrders();
+        },
+        error: () => {
+          this.showToast(this.translate.instant('ORDERS.FAILED_TO_UPDATE_ITEM'), 'error');
+        }
+      });
+    }, 400);
   }
 
   removeItemStaff(orderId: number, itemId: number, itemStatus: string) {
-    let reason: string | null = null;
-
-    // If item is ready, require reason
+    // If item is ready, require reason via confirmation modal
     if (itemStatus === 'ready') {
-      reason = prompt('Reason for removal (required for tax reporting):');
-      if (!reason || !reason.trim()) {
-        alert('Reason is required when removing ready items');
-        return;
-      }
+      this.openConfirmModal(
+        this.translate.instant('ORDERS.REMOVAL_REASON'),
+        () => {
+          if (!this.confirmReason.trim()) {
+            this.showToast(this.translate.instant('ORDERS.REMOVAL_REASON_REQUIRED'), 'error');
+            return;
+          }
+          this.doRemoveItem(orderId, itemId, this.confirmReason);
+        },
+        { requireReason: true, confirmText: this.translate.instant('COMMON.CONFIRM') }
+      );
+    } else {
+      // For non-ready items, simple confirmation
+      this.openConfirmModal(
+        this.translate.instant('ORDERS.REMOVE_ITEM_CONFIRM'),
+        () => this.doRemoveItem(orderId, itemId),
+        { confirmText: this.translate.instant('COMMON.CONFIRM') }
+      );
     }
+  }
 
-    if (!confirm('Are you sure you want to remove this item?')) {
-      return;
-    }
-
-    this.api.removeOrderItemStaff(orderId, itemId, reason || undefined).subscribe({
+  private doRemoveItem(orderId: number, itemId: number, reason?: string) {
+    this.api.removeOrderItemStaff(orderId, itemId, reason).subscribe({
       next: () => {
+        this.showToast(this.translate.instant('ORDERS.ITEM_REMOVED'), 'success');
         this.loadOrders();
       },
-      error: (err) => {
-        const errorMsg = err.error?.detail || 'Failed to remove item';
-        alert(errorMsg);
+      error: () => {
+        this.showToast(this.translate.instant('ORDERS.FAILED_TO_REMOVE_ITEM'), 'error');
       }
     });
   }
@@ -1527,10 +1698,9 @@ export class OrdersComponent implements OnInit, OnDestroy {
         this.closePaymentModal();
         this.loadOrders();
       },
-      error: (err) => {
+      error: () => {
         this.processingPayment.set(false);
-        const errorMsg = err.error?.detail || 'Failed to mark order as paid';
-        alert(errorMsg);
+        this.showToast(this.translate.instant('ORDERS.FAILED_TO_MARK_PAID'), 'error');
       }
     });
   }

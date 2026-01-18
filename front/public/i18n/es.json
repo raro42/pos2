@@ -199,14 +199,48 @@
     "STRIPE_ONLINE": "Stripe (Online)",
     "OTHER": "Otro",
     "PROCESSING": "Procesando...",
-    "CANCEL": "Cancelar"
+    "CANCEL": "Cancelar",
+    "GRID": {
+      "ORDER_NUMBER": "Pedido #",
+      "TABLE": "Mesa",
+      "CUSTOMER": "Cliente",
+      "ITEMS": "Artículos",
+      "TOTAL": "Total",
+      "STATUS": "Estado",
+      "DATE": "Fecha"
+    },
+    "REMOVE_ITEM_CONFIRM": "¿Estás seguro de que quieres eliminar este artículo?",
+    "CANCELLATION_REASON": "Motivo de la cancelación (requerido para informes fiscales):",
+    "REASON_REQUIRED": "Se requiere un motivo al cancelar artículos listos",
+    "REMOVAL_REASON": "Motivo de la eliminación (requerido para informes fiscales):",
+    "REMOVAL_REASON_REQUIRED": "Se requiere un motivo al eliminar artículos listos",
+    "QUANTITY_MIN_ERROR": "La cantidad debe ser al menos 1",
+    "ITEM_REMOVED": "Artículo eliminado con éxito",
+    "ITEM_UPDATED": "Artículo actualizado con éxito",
+    "STATUS_UPDATED": "Estado actualizado con éxito",
+    "FAILED_TO_UPDATE_STATUS": "Error al actualizar el estado",
+    "FAILED_TO_UPDATE_ITEM": "Error al actualizar el artículo",
+    "FAILED_TO_REMOVE_ITEM": "Error al eliminar el artículo",
+    "FAILED_TO_RESET_STATUS": "Error al restablecer el estado del artículo",
+    "FAILED_TO_CANCEL_ITEM": "Error al cancelar el artículo",
+    "FAILED_TO_MARK_PAID": "Error al marcar el pedido como pagado"
   },
   "ORDER_STATUS": {
     "pending": "Pendiente",
     "preparing": "Preparando",
     "ready": "Listo",
+    "partially_delivered": "Parcialmente Entregado",
+    "delivered": "Entregado",
     "paid": "Pagado",
-    "completed": "Completado"
+    "completed": "Entregado",
+    "cancelled": "Cancelado"
+  },
+  "ITEM_STATUS": {
+    "pending": "Pendiente",
+    "preparing": "Preparando",
+    "ready": "Listo",
+    "delivered": "Entregado",
+    "cancelled": "Cancelado"
   },
   "TABLES": {
     "TITLE": "Mesas",
@@ -223,6 +257,7 @@
     "SEATS": "Asientos",
     "QR_CODE": "Código QR",
     "FLOOR": "Planta",
+    "DEFAULT_FLOOR_NAME": "Planta {{number}}",
     "ADD_FLOOR": "Añadir Planta",
     "RENAME_FLOOR": "Renombrar planta",
     "DELETE_FLOOR": "Eliminar planta",
@@ -233,7 +268,6 @@
     "AVAILABLE": "Disponible",
     "OCCUPIED": "Ocupada",
     "RESERVED": "Reservada",
-    "DELETE_TABLE": "Eliminar mesa",
     "DELETE_TABLE_CONFIRM": "¿Estás seguro de que quieres eliminar esta mesa?",
     "ZOOM_IN": "Acercar",
     "ZOOM_OUT": "Alejar",
@@ -509,7 +543,8 @@
       "FAILED_TO_LOAD": "Error al cargar proveedores",
       "FAILED_TO_CREATE": "Error al crear",
       "FAILED_TO_UPDATE": "Error al actualizar",
-      "FAILED_TO_DELETE": "Error al eliminar"
+      "FAILED_TO_DELETE": "Error al eliminar",
+      "SUPPLIER": "Proveedor"
     },
     "CATEGORIES": {
       "INGREDIENTS": "Ingredientes",

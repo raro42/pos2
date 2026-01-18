@@ -199,14 +199,48 @@
     "STRIPE_ONLINE": "Stripe (Online)",
     "OTHER": "Other",
     "PROCESSING": "Processing...",
-    "CANCEL": "Cancel"
+    "CANCEL": "Cancel",
+    "GRID": {
+      "ORDER_NUMBER": "Order #",
+      "TABLE": "Table",
+      "CUSTOMER": "Customer",
+      "ITEMS": "Items",
+      "TOTAL": "Total",
+      "STATUS": "Status",
+      "DATE": "Date"
+    },
+    "REMOVE_ITEM_CONFIRM": "Are you sure you want to remove this item?",
+    "CANCELLATION_REASON": "Reason for cancellation (required for tax reporting):",
+    "REASON_REQUIRED": "Reason is required when canceling ready items",
+    "REMOVAL_REASON": "Reason for removal (required for tax reporting):",
+    "REMOVAL_REASON_REQUIRED": "Reason is required when removing ready items",
+    "QUANTITY_MIN_ERROR": "Quantity must be at least 1",
+    "ITEM_REMOVED": "Item removed successfully",
+    "ITEM_UPDATED": "Item updated successfully",
+    "STATUS_UPDATED": "Status updated successfully",
+    "FAILED_TO_UPDATE_STATUS": "Failed to update status",
+    "FAILED_TO_UPDATE_ITEM": "Failed to update item",
+    "FAILED_TO_REMOVE_ITEM": "Failed to remove item",
+    "FAILED_TO_RESET_STATUS": "Failed to reset item status",
+    "FAILED_TO_CANCEL_ITEM": "Failed to cancel item",
+    "FAILED_TO_MARK_PAID": "Failed to mark order as paid"
   },
   "ORDER_STATUS": {
     "pending": "Pending",
     "preparing": "Preparing",
     "ready": "Ready",
+    "partially_delivered": "Partially Delivered",
+    "delivered": "Delivered",
     "paid": "Paid",
-    "completed": "Completed"
+    "completed": "Delivered",
+    "cancelled": "Cancelled"
+  },
+  "ITEM_STATUS": {
+    "pending": "Pending",
+    "preparing": "Preparing",
+    "ready": "Ready",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled"
   },
   "TABLES": {
     "TITLE": "Tables",
@@ -223,6 +257,7 @@
     "SEATS": "Seats",
     "QR_CODE": "QR Code",
     "FLOOR": "Floor",
+    "DEFAULT_FLOOR_NAME": "Floor {{number}}",
     "ADD_FLOOR": "Add Floor",
     "RENAME_FLOOR": "Rename floor",
     "DELETE_FLOOR": "Delete floor",
@@ -233,7 +268,6 @@
     "AVAILABLE": "Available",
     "OCCUPIED": "Occupied",
     "RESERVED": "Reserved",
-    "DELETE_TABLE": "Delete table",
     "DELETE_TABLE_CONFIRM": "Are you sure you want to delete this table?",
     "ZOOM_IN": "Zoom In",
     "ZOOM_OUT": "Zoom Out",
@@ -321,7 +355,8 @@
     "SAVE_CHANGES": "Save Changes",
     "SAVING": "Saving...",
     "TRANSLATIONS_TITLE": "Translations",
-    "TRANSLATIONS_SUBTITLE": "Manage translations for your menu and business information"
+    "TRANSLATIONS_SUBTITLE": "Manage translations for your menu and business information",
+    "STRIPE_KEYS": "Stripe Keys"
   },
   "PAYMENTS": {
     "PAYMENT": "Payment",
@@ -524,7 +559,12 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "EDIT": "Edit",
-      "REFRESH": "Refresh"
+      "REFRESH": "Refresh",
+      "APPLY": "Apply",
+      "DELETING": "Deleting...",
+      "PROCESSING": "Processing...",
+      "TOTAL": "Total",
+      "VIEW": "View"
     }
   }
 }

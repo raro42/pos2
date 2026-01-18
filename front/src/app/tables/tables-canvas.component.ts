@@ -5,7 +5,7 @@ import { LowerCasePipe } from '@angular/common';
 import { ApiService, Floor, CanvasTable } from '../services/api.service';
 import { SidebarComponent } from '../shared/sidebar.component';
 import { ConfirmationModalComponent } from '../shared/confirmation-modal.component';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 interface TableShape {
   id: string;
@@ -1129,6 +1129,7 @@ interface TableShape {
 })
 export class TablesCanvasComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
+  private translate = inject(TranslateService);
 
   @ViewChild('canvasArea') canvasAreaRef!: ElementRef;
   @ViewChild('canvasSvg') canvasSvgRef!: ElementRef<SVGSVGElement>;
@@ -1251,7 +1252,8 @@ export class TablesCanvasComponent implements OnInit, OnDestroy {
 
   addFloor() {
     this.error.set('');
-    const name = `Floor ${this.floors().length + 1}`;
+    const floorNumber = this.floors().length + 1;
+    const name = this.translate.instant('TABLES.DEFAULT_FLOOR_NAME', { number: floorNumber });
     this.api.createFloor(name).subscribe({
       next: floor => {
         this.floors.update(f => [...f, floor]);
