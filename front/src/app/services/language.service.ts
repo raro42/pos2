@@ -34,28 +34,42 @@ export class LanguageService {
     this.translate.addLangs(langCodes);
     this.translate.setDefaultLang(DEFAULT_LANGUAGE);
 
-    // Determine initial language
+    // Priority: stored user preference > browser language > default
     const stored = this.getStoredLanguage();
     const browserLang = this.getBrowserLanguage();
     const initialLang = stored || browserLang || DEFAULT_LANGUAGE;
 
-    this.setLanguage(initialLang);
+    // Apply language WITHOUT storing (only store on explicit user change)
+    this.applyLanguage(initialLang);
   }
 
+  /**
+   * Public method: Set language AND persist to localStorage.
+   * Use this when user explicitly chooses a language.
+   */
   setLanguage(lang: LanguageCode | string): void {
+    this.applyLanguage(lang);
+    // Persist user's explicit choice
+    this.storeLanguage(this.currentLanguage());
+  }
+
+  /**
+   * Private method: Apply language without persisting.
+   * Used for initial auto-detection from browser.
+   */
+  private applyLanguage(lang: LanguageCode | string): void {
     const normalizedLang = this.normalizeLanguageCode(lang);
     const langConfig = SUPPORTED_LANGUAGES.find(l => l.code === normalizedLang);
 
     if (!langConfig) {
       console.warn(`Unsupported language: ${lang}, falling back to ${DEFAULT_LANGUAGE}`);
-      this.setLanguage(DEFAULT_LANGUAGE);
+      this.applyLanguage(DEFAULT_LANGUAGE);
       return;
     }
 
     this.translate.use(normalizedLang);
     this.currentLanguage.set(normalizedLang);
     this.currentLocale.set(langConfig.locale);
-    this.storeLanguage(normalizedLang);
 
     // Update document lang attribute for accessibility
     if (typeof document !== 'undefined') {
