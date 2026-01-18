@@ -79,7 +79,11 @@
     "FULL_NAME": "Vollständiger Name",
     "CREATING_ACCOUNT": "Konto wird erstellt...",
     "ALREADY_HAVE_ACCOUNT": "Haben Sie bereits ein Konto?",
-    "SIGN_IN_LINK": "Anmelden"
+    "SIGN_IN_LINK": "Anmelden",
+    "EMAIL_PLACEHOLDER": "du@beispiel.com",
+    "PASSWORD_PLACEHOLDER": "Geben Sie Ihr Passwort ein",
+    "ORGANIZATION_PLACEHOLDER": "Name Ihres Restaurants",
+    "NAME_PLACEHOLDER": "Max Mustermann"
   },
   "MENU": {
     "TITLE": "Speisekarte",

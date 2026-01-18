@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ApiService } from '../services/api.service';
 
 @Component({
@@ -24,7 +24,7 @@ import { ApiService } from '../services/api.service';
               type="email" 
               name="username"
               formControlName="username" 
-              placeholder="you@example.com"
+              [placeholder]="translate.instant('AUTH.EMAIL_PLACEHOLDER')"
               autocomplete="email"
             >
           </div>
@@ -36,7 +36,7 @@ import { ApiService } from '../services/api.service';
               type="password" 
               name="password"
               formControlName="password"
-              placeholder="Enter your password"
+              [placeholder]="translate.instant('AUTH.PASSWORD_PLACEHOLDER')"
               autocomplete="current-password"
             >
           </div>
@@ -147,6 +147,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
   private router = inject(Router);
+  private translate = inject(TranslateService);
 
   error = signal<string>('');
   loading = signal(false);

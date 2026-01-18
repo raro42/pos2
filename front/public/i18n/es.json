@@ -79,7 +79,11 @@
     "FULL_NAME": "Nombre completo",
     "CREATING_ACCOUNT": "Creando cuenta...",
     "ALREADY_HAVE_ACCOUNT": "¿Ya tienes cuenta?",
-    "SIGN_IN_LINK": "Iniciar sesión"
+    "SIGN_IN_LINK": "Iniciar sesión",
+    "EMAIL_PLACEHOLDER": "tu@ejemplo.com",
+    "PASSWORD_PLACEHOLDER": "Introduce tu contraseña",
+    "ORGANIZATION_PLACEHOLDER": "Nombre de tu restaurante",
+    "NAME_PLACEHOLDER": "Juan García"
   },
   "MENU": {
     "TITLE": "Menú",

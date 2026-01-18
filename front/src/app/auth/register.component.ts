@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ApiService } from '../services/api.service';
 
 @Component({
@@ -33,7 +33,7 @@ import { ApiService } from '../services/api.service';
               id="name" 
               type="text" 
               formControlName="full_name" 
-              placeholder="John Doe"
+              [placeholder]="translate.instant('AUTH.NAME_PLACEHOLDER')"
             >
           </div>
 
@@ -43,7 +43,7 @@ import { ApiService } from '../services/api.service';
               id="email" 
               type="email" 
               formControlName="email" 
-              placeholder="you@example.com"
+              [placeholder]="translate.instant('AUTH.EMAIL_PLACEHOLDER')"
               autocomplete="email"
             >
           </div>
@@ -178,6 +178,7 @@ export class RegisterComponent {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
   private router = inject(Router);
+  private translate = inject(TranslateService);
 
   error = signal<string>('');
   success = signal<string>('');
