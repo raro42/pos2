@@ -2379,6 +2379,9 @@ def get_menu(
         "tenant_stripe_publishable_key": tenant.stripe_publishable_key
         if tenant
         else None,
+        "tenant_immediate_payment_required": tenant.immediate_payment_required
+        if tenant
+        else False,
         "products": products_list,
     }
 
@@ -3594,6 +3597,7 @@ def cancel_order(
     order.status = models.OrderStatus.cancelled
     order.cancelled_at = datetime.now(timezone.utc)
     order.cancelled_by = "customer"
+    order.session_id = None  # Prevent order reuse - new orders get new numbers
     
     for item in items:
         if not item.removed_by_customer:  # Only cancel items not already removed

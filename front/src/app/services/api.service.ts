@@ -120,6 +120,7 @@ export interface MenuResponse {
   tenant_currency?: string | null;
   tenant_currency_code?: string | null;
   tenant_stripe_publishable_key?: string | null;
+  tenant_immediate_payment_required?: boolean;
   products: Product[];
 }
 

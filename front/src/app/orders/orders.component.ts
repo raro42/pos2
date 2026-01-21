@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { ApiService, Order } from '../services/api.service';
+import { ApiService, Order, OrderItem } from '../services/api.service';
 import { AudioService } from '../services/audio.service';
 import { Subscription } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -91,7 +91,7 @@ ModuleRegistry.registerModules([
                     </div>
 
                     <div class="order-items">
-                      @for (item of order.items; track item.id) {
+                      @for (item of getSortedItems(order.items); track item.id) {
                         <div class="order-item" [class.removed]="item.removed_by_customer">
                           <div class="item-main">
                             <span class="item-qty">
@@ -1526,6 +1526,22 @@ export class OrdersComponent implements OnInit, OnDestroy {
       hour: '2-digit',
       minute: '2-digit',
       timeZone: timeZone
+    });
+  }
+
+  // Sort items: active (pending, preparing) on top, ready in middle, delivered at bottom
+  getSortedItems(items: OrderItem[]): OrderItem[] {
+    const statusOrder: Record<string, number> = {
+      pending: 0,
+      preparing: 1,
+      ready: 2,
+      delivered: 3,
+      cancelled: 4
+    };
+    return [...items].sort((a, b) => {
+      const aOrder = statusOrder[a.status || 'pending'] ?? 5;
+      const bOrder = statusOrder[b.status || 'pending'] ?? 5;
+      return aOrder - bOrder;
     });
   }
 

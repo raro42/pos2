@@ -128,5 +128,46 @@ class TestSessionIsolation(unittest.TestCase):
         # Should succeed
         self.assertEqual(response.status_code, 200)
 
+    def test_cancel_order_clears_session_id(self):
+        """After canceling, a new order with the same session_id should get a new order number."""
+        session_id = "user_session_456"
+
+        # Create first order
+        response = self.client.post(
+            f"/menu/{self.table.token}/order",
+            json={
+                "items": [{"product_id": self.product.id, "quantity": 1}],
+                "session_id": session_id
+            }
+        )
+        self.assertEqual(response.status_code, 200)
+        first_order_id = response.json()["order_id"]
+        first_order_number = response.json().get("order_number")
+
+        # Cancel the order
+        response = self.client.delete(
+            f"/menu/{self.table.token}/order/{first_order_id}",
+            params={"session_id": session_id}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Create new order with the same session_id
+        response = self.client.post(
+            f"/menu/{self.table.token}/order",
+            json={
+                "items": [{"product_id": self.product.id, "quantity": 1}],
+                "session_id": session_id
+            }
+        )
+        self.assertEqual(response.status_code, 200)
+        second_order_id = response.json()["order_id"]
+        second_order_number = response.json().get("order_number")
+
+        # Should be a different order (not reusing the cancelled one)
+        self.assertNotEqual(first_order_id, second_order_id)
+        # Order number should have incremented (not reusing the cancelled order number)
+        if first_order_number is not None and second_order_number is not None:
+            self.assertNotEqual(first_order_number, second_order_number)
+
 if __name__ == "__main__":
     unittest.main()

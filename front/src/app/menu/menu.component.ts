@@ -57,6 +57,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   tenantWebsite = signal<string | null>(null);
   tenantCurrency = signal<string>('$');
   tenantCurrencyCode = signal<string | null>(null);
+  immediatePaymentRequired = signal(false);
 
   // Cart & Orders
   cart = signal<CartItem[]>([]);
@@ -225,6 +226,7 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.tenantWebsite.set(data.tenant_website || null);
         this.tenantCurrency.set(data.tenant_currency || '$');
         this.tenantCurrencyCode.set(data.tenant_currency_code || null);
+        this.immediatePaymentRequired.set(data.tenant_immediate_payment_required || false);
 
         if (data.tenant_stripe_publishable_key) {
           this.api.setTenantStripeKey(data.tenant_stripe_publishable_key);
@@ -765,6 +767,16 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.submitting.set(false);
 
         this.loadStoredOrders();
+
+        // Auto-trigger payment if immediate payment is required
+        if (this.immediatePaymentRequired()) {
+          setTimeout(() => {
+            const currentOrder = this.placedOrders().find(o => o.id === orderId);
+            if (currentOrder) {
+              this.startCheckout(currentOrder);
+            }
+          }, 500);
+        }
       },
       error: () => {
         this.submitting.set(false);
