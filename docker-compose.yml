@@ -93,6 +93,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-CHANGE_THIS_IN_PRODUCTION}
       ALGORITHM: ${ALGORITHM:-HS256}
       API_URL: http://pos-back:8020
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
     depends_on:
       redis:
         condition: service_healthy

@@ -213,11 +213,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
+# Configure CORS
+cors_origins_str = os.getenv("CORS_ORIGINS", "*")
+allow_origins = ["*"] if cors_origins_str == "*" else [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+
 # Add HTTP middleware to base app
 app_base.add_middleware(RequestLoggingMiddleware)
 app_base.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -363,6 +367,10 @@ async def websocket_tenant_endpoint(
     except Exception as e:
         logger.error(f"Failed to accept WebSocket connection for /ws/tenant/{tenant_id}: {e}")
         return
+    
+    # Try to get token from cookies if not in query params
+    if not token:
+        token = websocket.cookies.get("access_token")
     
     # Validate JWT token
     if not token:
