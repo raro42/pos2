@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from sqlmodel import Session, select
 
 from .db import get_session
-from .models import User, Tenant
+from .models import User, Tenant, UserRole
 from .settings import settings
 
 # Context variable to store the current tenant_id for the request

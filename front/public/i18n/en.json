@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "Save",
+    "SAVING": "Saving...",
     "CANCEL": "Cancel",
     "DELETE": "Delete",
     "EDIT": "Edit",
@@ -48,6 +49,7 @@
     "REPORTS": "Reports",
     "TRANSLATIONS": "Translations",
     "SETTINGS": "Settings",
+    "USERS": "Users",
     "LOGOUT": "Logout"
   },
   "DASHBOARD": {
@@ -115,7 +117,9 @@
     "NO_PRODUCTS": "No products found",
     "WHATS_YOUR_NAME": "What's your name?",
     "NAME_OPTIONAL": "(optional - you can skip this)",
-    "ENTER_NAME": "Enter your name"
+    "ENTER_NAME": "Enter your name",
+    "ENTER_PIN": "Enter Table PIN",
+    "PIN_HINT": "Ask your server for the 4-digit PIN"
   },
   "PRODUCTS": {
     "TITLE": "Products",
@@ -329,7 +333,12 @@
     "SHAPE_OVAL_6": "Oval (6)",
     "SHAPE_BOOTH_4": "Booth (4)",
     "SHAPE_BAR_6": "Bar Counter (6)",
-    "DEFAULT_TABLE_NAME": "Table {{number}}"
+    "DEFAULT_TABLE_NAME": "Table {{number}}",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive",
+    "ACTIVATE": "Activate",
+    "CLOSE_TABLE": "Close Table",
+    "NEW_PIN": "New PIN"
   },
   "TABLE_STATUS": {
     "available": "Available",
@@ -407,7 +416,16 @@
     "SAVING": "Saving...",
     "TRANSLATIONS_TITLE": "Translations",
     "TRANSLATIONS_SUBTITLE": "Manage translations for your menu and business information",
-    "STRIPE_KEYS": "Stripe Keys"
+    "STRIPE_KEYS": "Stripe Keys",
+    "LOCATION_VERIFICATION": "Location Verification",
+    "LOCATION_VERIFICATION_DESC": "Flag orders placed from outside your restaurant's location",
+    "ENABLE_LOCATION_CHECK": "Enable location verification",
+    "ENABLE_LOCATION_CHECK_HINT": "Orders from outside the radius will be flagged for review",
+    "LATITUDE": "Latitude",
+    "LONGITUDE": "Longitude",
+    "LOCATION_RADIUS": "Radius (meters)",
+    "LOCATION_RADIUS_HINT": "Orders outside this radius will be flagged",
+    "USE_CURRENT_LOCATION": "Use current location"
   },
   "PAYMENTS": {
     "PAYMENT": "Payment",
@@ -618,6 +636,28 @@
       "PROCESSING": "Processing...",
       "TOTAL": "Total",
       "VIEW": "View"
+    }
+  },
+  "USERS": {
+    "TITLE": "User Management",
+    "ADD_USER": "Add User",
+    "EDIT_USER": "Edit User",
+    "DELETE_USER": "Delete User",
+    "EMAIL": "Email",
+    "FULL_NAME": "Full Name",
+    "ROLE": "Role",
+    "PASSWORD": "Password",
+    "NEW_PASSWORD": "New Password",
+    "LEAVE_BLANK": "leave blank to keep current",
+    "NO_USERS": "No users found",
+    "DELETE_CONFIRM_TITLE": "Delete User",
+    "DELETE_CONFIRM_MESSAGE": "Are you sure you want to delete {{name}}? This action cannot be undone.",
+    "ROLES": {
+      "OWNER": "Owner",
+      "ADMIN": "Administrator",
+      "KITCHEN": "Kitchen Staff",
+      "WAITER": "Waiter",
+      "RECEPTIONIST": "Receptionist"
     }
   },
   "TRANSLATIONS": {

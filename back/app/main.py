@@ -25,6 +25,7 @@ from .inventory_service import deduct_inventory_for_order
 from . import inventory_models
 from .translation_service import TranslationService
 from .messages import get_message
+from .permissions import Permission, require_permission, require_role, has_permission
 
 # Configure logging
 logging.basicConfig(
@@ -403,6 +404,7 @@ def register(
         hashed_password=hashed_password,
         full_name=full_name,
         tenant_id=tenant.id,
+        role=models.UserRole.owner,  # First user of a tenant is always the owner
     )
     session.add(user)
     session.commit()
@@ -534,6 +536,198 @@ def read_users_me(
     return current_user
 
 
+# ============ USER MANAGEMENT ============
+
+
+@app.get("/users")
+def list_users(
+    current_user: Annotated[models.User, Depends(require_permission(Permission.USER_READ))],
+    session: Session = Depends(get_session),
+) -> list[models.UserResponse]:
+    """List all users in the tenant."""
+    users = session.exec(
+        select(models.User).where(models.User.tenant_id == current_user.tenant_id)
+    ).all()
+    return [
+        models.UserResponse(
+            id=u.id,
+            email=u.email,
+            full_name=u.full_name,
+            role=u.role,
+            tenant_id=u.tenant_id
+        )
+        for u in users
+    ]
+
+
+@app.post("/users")
+def create_user(
+    user_data: models.UserCreate,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.USER_CREATE))],
+    session: Session = Depends(get_session),
+) -> models.UserResponse:
+    """Create a new user in the tenant."""
+    from .permissions import can_manage_user
+    
+    # Check if current user can create users with the specified role
+    if not can_manage_user(current_user, user_data.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot create user with role '{user_data.role.value}'"
+        )
+    
+    # Check if email already exists
+    existing = session.exec(
+        select(models.User).where(models.User.email == user_data.email)
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create the user
+    new_user = models.User(
+        email=user_data.email,
+        hashed_password=security.get_password_hash(user_data.password),
+        full_name=user_data.full_name,
+        role=user_data.role,
+        tenant_id=current_user.tenant_id,
+    )
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    
+    return models.UserResponse(
+        id=new_user.id,
+        email=new_user.email,
+        full_name=new_user.full_name,
+        role=new_user.role,
+        tenant_id=new_user.tenant_id
+    )
+
+
+@app.put("/users/{user_id}")
+def update_user(
+    user_id: int,
+    user_data: models.UserUpdate,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.USER_UPDATE))],
+    session: Session = Depends(get_session),
+) -> models.UserResponse:
+    """Update a user's details."""
+    from .permissions import can_modify_user, can_manage_user
+    
+    # Get the target user
+    target_user = session.exec(
+        select(models.User).where(
+            models.User.id == user_id,
+            models.User.tenant_id == current_user.tenant_id
+        )
+    ).first()
+    
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if current user can modify this user
+    if not can_modify_user(current_user, target_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot modify this user"
+        )
+    
+    # Check if trying to change role
+    if user_data.role is not None and user_data.role != target_user.role:
+        # Verify can assign this role
+        if not can_manage_user(current_user, user_data.role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot assign role '{user_data.role.value}'"
+            )
+        
+        # Prevent owner from demoting themselves
+        if current_user.id == target_user.id and current_user.role == models.UserRole.owner:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote yourself from owner role"
+            )
+        
+        target_user.role = user_data.role
+    
+    # Update other fields
+    if user_data.email is not None:
+        # Check if email is already taken
+        existing = session.exec(
+            select(models.User).where(
+                models.User.email == user_data.email,
+                models.User.id != user_id
+            )
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use"
+            )
+        target_user.email = user_data.email
+    
+    if user_data.full_name is not None:
+        target_user.full_name = user_data.full_name
+    
+    if user_data.password is not None:
+        target_user.hashed_password = security.get_password_hash(user_data.password)
+        # Increment token version to invalidate existing tokens
+        target_user.token_version += 1
+    
+    session.add(target_user)
+    session.commit()
+    session.refresh(target_user)
+    
+    return models.UserResponse(
+        id=target_user.id,
+        email=target_user.email,
+        full_name=target_user.full_name,
+        role=target_user.role,
+        tenant_id=target_user.tenant_id
+    )
+
+
+@app.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.USER_DELETE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Delete a user (owner only)."""
+    # Get the target user
+    target_user = session.exec(
+        select(models.User).where(
+            models.User.id == user_id,
+            models.User.tenant_id == current_user.tenant_id
+        )
+    ).first()
+    
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Cannot delete yourself
+    if target_user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete yourself"
+        )
+    
+    # Cannot delete another owner
+    if target_user.role == models.UserRole.owner:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete an owner"
+        )
+    
+    session.delete(target_user)
+    session.commit()
+    
+    return {"message": "User deleted successfully"}
+
+
 # ============ TRANSLATIONS ============
 
 
@@ -541,7 +735,7 @@ def read_users_me(
 def get_translations_for_entity(
     entity_type: str,
     entity_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TRANSLATION_READ))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Get all translations for a specific entity."""
@@ -589,7 +783,7 @@ def update_translations_for_entity(
     entity_type: str,
     entity_id: int,
     translations: Dict[str, Dict[str, str]],  # {field: {lang: text}}
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TRANSLATION_WRITE))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Update translations for a specific entity."""
@@ -649,7 +843,7 @@ def update_translations_for_entity(
 
 @app.get("/tenant/settings")
 def get_tenant_settings(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.SETTINGS_READ))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Get tenant/business profile settings."""
@@ -686,7 +880,7 @@ def get_tenant_settings(
 @app.put("/tenant/settings")
 def update_tenant_settings(
     tenant_update: models.TenantUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.SETTINGS_UPDATE))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Update tenant/business profile settings."""
@@ -816,7 +1010,7 @@ def update_tenant_settings(
 @app.post("/tenant/logo")
 async def upload_tenant_logo(
     file: Annotated[UploadFile, File()],
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.SETTINGS_UPDATE))],
     session: Session = Depends(get_session),
 ) -> models.Tenant:
     """Upload a logo for the tenant/business."""
@@ -885,7 +1079,7 @@ async def upload_tenant_logo(
 
 @app.get("/products")
 def list_products(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_READ))],
     session: Session = Depends(get_session),
 ) -> list[models.Product]:
     """List all products for the tenant.
@@ -1001,7 +1195,7 @@ def list_products(
 @app.post("/products")
 def create_product(
     product: models.Product,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Product:
     product.tenant_id = current_user.tenant_id
@@ -1015,7 +1209,7 @@ def create_product(
 def update_product(
     product_id: int,
     product_update: models.ProductUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Product:
     product = session.exec(
@@ -1048,7 +1242,7 @@ def update_product(
 @app.delete("/products/{product_id}")
 def delete_product(
     product_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> dict:
     product = session.exec(
@@ -1070,7 +1264,7 @@ def delete_product(
 async def upload_product_image(
     product_id: int,
     file: Annotated[UploadFile, File()],
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Product:
     """Upload an image for a product. Validates file type and size."""
@@ -1142,7 +1336,7 @@ async def upload_product_image(
 
 @app.get("/providers")
 def list_providers(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
     active_only: bool = True,
 ) -> list[models.Provider]:
@@ -1156,7 +1350,7 @@ def list_providers(
 @app.get("/providers/{provider_id}")
 def get_provider(
     provider_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
 ) -> models.Provider:
     """Get a specific provider."""
@@ -1171,7 +1365,7 @@ def get_provider(
 @app.post("/providers")
 def create_provider(
     provider: models.Provider,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Provider:
     """Create a new provider (admin function)."""
@@ -1186,7 +1380,7 @@ def create_provider(
 
 @app.get("/catalog")
 async def list_catalog(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
     category: str | None = None,
     subcategory: str | None = None,
@@ -1320,7 +1514,7 @@ async def list_catalog(
 
 @app.get("/catalog/categories")
 async def get_catalog_categories(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Get all categories and subcategories from catalog."""
@@ -1340,7 +1534,7 @@ async def get_catalog_categories(
 @app.get("/catalog/{catalog_id}")
 async def get_catalog_item(
     catalog_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Get a specific catalog item with price comparison."""
@@ -1451,7 +1645,7 @@ async def get_catalog_item(
 @app.get("/providers/{provider_id}/products")
 def list_provider_products(
     provider_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.CATALOG_READ))],
     session: Session = Depends(get_session),
 ) -> list[models.ProviderProduct]:
     """List all products from a specific provider."""
@@ -1473,7 +1667,7 @@ def list_provider_products(
 
 @app.get("/tenant-products")
 def list_tenant_products(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_READ))],
     session: Session = Depends(get_session),
     active_only: bool = True,
 ) -> list[dict]:
@@ -1538,7 +1732,7 @@ def list_tenant_products(
 @app.post("/tenant-products")
 def create_tenant_product(
     product_data: models.TenantProductCreate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.TenantProduct:
     """Add a product from catalog to tenant's menu.
@@ -1720,7 +1914,7 @@ def create_tenant_product(
 def update_tenant_product(
     tenant_product_id: int,
     product_update: models.TenantProductUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.TenantProduct:
     """Update a tenant product."""
@@ -1750,7 +1944,7 @@ def update_tenant_product(
 @app.delete("/tenant-products/{tenant_product_id}")
 def delete_tenant_product(
     tenant_product_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.PRODUCT_WRITE))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Delete a tenant product."""
@@ -1774,7 +1968,7 @@ def delete_tenant_product(
 
 @app.get("/floors")
 def list_floors(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.FLOOR_READ))],
     session: Session = Depends(get_session),
 ) -> list[models.Floor]:
     """List all floors for this tenant."""
@@ -1788,7 +1982,7 @@ def list_floors(
 @app.post("/floors")
 def create_floor(
     floor_data: models.FloorCreate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.FLOOR_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Floor:
     """Create a new floor/zone."""
@@ -1815,7 +2009,7 @@ def create_floor(
 def update_floor(
     floor_id: int,
     floor_update: models.FloorUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.FLOOR_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Floor:
     """Update a floor."""
@@ -1843,7 +2037,7 @@ def update_floor(
 @app.delete("/floors/{floor_id}")
 def delete_floor(
     floor_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.FLOOR_WRITE))],
     session: Session = Depends(get_session),
 ) -> dict:
     """Delete a floor. Tables on this floor will have floor_id set to null."""
@@ -1867,7 +2061,7 @@ def delete_floor(
 
 @app.get("/tables")
 def list_tables(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_READ))],
     session: Session = Depends(get_session),
 ) -> list[models.Table]:
     return session.exec(
@@ -1877,7 +2071,7 @@ def list_tables(
 
 @app.get("/tables/with-status")
 def list_tables_with_status(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_READ))],
     session: Session = Depends(get_session),
 ) -> list[dict]:
     """List tables with computed status based on active orders."""
@@ -1921,7 +2115,7 @@ def list_tables_with_status(
 @app.post("/tables")
 def create_table(
     table_data: models.TableCreate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Table:
     table = models.Table(
@@ -1939,7 +2133,7 @@ def create_table(
 def update_table(
     table_id: int,
     table_update: models.TableUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_WRITE))],
     session: Session = Depends(get_session),
 ) -> models.Table:
     """Update table properties including canvas layout."""
@@ -1982,7 +2176,7 @@ def update_table(
 @app.delete("/tables/{table_id}")
 def delete_table(
     table_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_WRITE))],
     session: Session = Depends(get_session),
 ) -> dict:
     table = session.exec(
@@ -1998,6 +2192,139 @@ def delete_table(
     session.delete(table)
     session.commit()
     return {"status": "deleted", "id": table_id}
+
+
+# ============ TABLE SESSION MANAGEMENT ============
+
+
+@app.post("/tables/{table_id}/activate")
+def activate_table(
+    table_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_ACTIVATE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """
+    Activate a table for ordering.
+    Generates a new PIN and creates an empty order for the table.
+    """
+    import random
+
+    table = session.exec(
+        select(models.Table).where(
+            models.Table.id == table_id,
+            models.Table.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    # Generate a new 4-digit PIN
+    pin = str(random.randint(1000, 9999))
+
+    # Create a new empty order for this table
+    new_order = models.Order(
+        table_id=table_id,
+        tenant_id=current_user.tenant_id,
+        status=models.OrderStatus.pending,
+        session_id=None,  # Shared order, no session binding
+    )
+    session.add(new_order)
+    session.flush()  # Get the order ID
+
+    # Update table with PIN and active order
+    table.order_pin = pin
+    table.is_active = True
+    table.active_order_id = new_order.id
+    table.activated_at = datetime.now(timezone.utc)
+
+    session.commit()
+    session.refresh(table)
+
+    return {
+        "id": table.id,
+        "name": table.name,
+        "pin": pin,
+        "is_active": True,
+        "active_order_id": new_order.id,
+        "activated_at": table.activated_at.isoformat() if table.activated_at else None,
+    }
+
+
+@app.post("/tables/{table_id}/close")
+def close_table(
+    table_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_ACTIVATE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """
+    Close a table session.
+    Clears the PIN and deactivates the table.
+    """
+    table = session.exec(
+        select(models.Table).where(
+            models.Table.id == table_id,
+            models.Table.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    # Clear session data
+    table.order_pin = None
+    table.is_active = False
+    table.active_order_id = None
+
+    session.commit()
+    session.refresh(table)
+
+    return {
+        "id": table.id,
+        "name": table.name,
+        "is_active": False,
+        "message": "Table closed successfully",
+    }
+
+
+@app.post("/tables/{table_id}/regenerate-pin")
+def regenerate_table_pin(
+    table_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_ACTIVATE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """
+    Generate a new PIN for an active table without closing it.
+    Useful when staff suspects PIN has been shared.
+    """
+    import random
+
+    table = session.exec(
+        select(models.Table).where(
+            models.Table.id == table_id,
+            models.Table.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    if not table.is_active:
+        raise HTTPException(status_code=400, detail="Table is not active. Activate it first.")
+
+    # Generate a new 4-digit PIN
+    pin = str(random.randint(1000, 9999))
+    table.order_pin = pin
+
+    session.commit()
+    session.refresh(table)
+
+    return {
+        "id": table.id,
+        "name": table.name,
+        "pin": pin,
+        "is_active": True,
+    }
 
 
 # ============ INTERNAL VALIDATION (for ws-bridge) ============
@@ -2404,6 +2731,10 @@ def get_menu(
         "tenant_immediate_payment_required": tenant.immediate_payment_required
         if tenant
         else False,
+        # Table session status
+        "table_is_active": table.is_active,
+        "table_requires_pin": table.is_active and table.order_pin is not None,
+        "active_order_id": table.active_order_id,
         "products": products_list,
     }
 
@@ -2525,13 +2856,29 @@ def get_current_order(
     }
 
 
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate the distance in meters between two GPS coordinates using Haversine formula."""
+    import math
+    R = 6371000  # Earth's radius in meters
+    
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
+
+
 @app.post("/menu/{table_token}/order")
 def create_order(
     table_token: str,
     order_data: models.OrderCreate,
     session: Session = Depends(get_session),
 ) -> dict:
-    """Public endpoint - create or add to order for a table."""
+    """Public endpoint - add items to the table's shared order."""
     table = session.exec(
         select(models.Table).where(models.Table.token == table_token)
     ).first()
@@ -2542,99 +2889,88 @@ def create_order(
     if not order_data.items:
         raise HTTPException(status_code=400, detail="Order must have at least one item")
 
-    # DEBUG: Log all orders for this table
-    all_orders = session.exec(
-        select(models.Order).where(models.Order.table_id == table.id)
-    ).all()
+    # Get tenant for location verification
+    tenant = session.get(models.Tenant, table.tenant_id)
+
+    # ============ TABLE ACTIVATION & PIN VALIDATION ============
+    # Check if table is active (staff has opened it)
+    if not table.is_active:
+        raise HTTPException(
+            status_code=403, 
+            detail="Table is not accepting orders. Please ask staff to activate the table."
+        )
+
+    # Validate PIN
+    if not order_data.pin:
+        raise HTTPException(
+            status_code=403, 
+            detail="PIN required. Please enter the table PIN to place an order."
+        )
+    
+    if order_data.pin != table.order_pin:
+        raise HTTPException(
+            status_code=403, 
+            detail="Invalid PIN. Please check the PIN displayed at your table."
+        )
+
+    # ============ GET SHARED ORDER ============
+    # Use the table's active order (created when table was activated)
+    if not table.active_order_id:
+        raise HTTPException(
+            status_code=500, 
+            detail="No active order for this table. Please ask staff to reactivate the table."
+        )
+
+    order = session.get(models.Order, table.active_order_id)
+    if not order:
+        raise HTTPException(
+            status_code=500, 
+            detail="Active order not found. Please ask staff to reactivate the table."
+        )
+
+    # Check order isn't already paid
+    if order.status == models.OrderStatus.paid:
+        raise HTTPException(
+            status_code=400, 
+            detail="This order has already been paid. Please ask staff to activate a new session."
+        )
+
     print(f"\n{'=' * 60}")
     print(f"[DEBUG] POST /menu/{table_token}/order")
-    print(f"[DEBUG] Table: id={table.id}, name={table.name}")
-    print(f"[DEBUG] All orders for this table:")
-    for o in all_orders:
-        has_paid_note = "[PAID:" in (o.notes or "")
-        print(f"  - Order #{o.id}: status={o.status!r}, has_paid_note={has_paid_note}")
-    
-    # Check for existing unpaid order for this table and session (reuse until paid)
-    # If session_id provided, only look for orders with matching session_id
-    # Otherwise, fall back to old behavior (any unpaid order for table)
-    if order_data.session_id:
-        potential_orders = session.exec(
-            select(models.Order).where(
-                models.Order.table_id == table.id,
-                models.Order.session_id == order_data.session_id,
-                models.Order.status != models.OrderStatus.paid
-            ).order_by(models.Order.created_at.desc())
-        ).all()
-        print(f"[DEBUG] Looking for orders with session_id={order_data.session_id}")
-    else:
-        # Backward compatibility: find any unpaid order (old behavior)
-        potential_orders = session.exec(
-            select(models.Order).where(
-                models.Order.table_id == table.id,
-                models.Order.status != models.OrderStatus.paid
-            ).order_by(models.Order.created_at.desc())
-        ).all()
-        print(f"[DEBUG] No session_id provided, using backward compatibility mode")
-    
-    # Filter out orders that have payment confirmation in notes (edge case for corrupted data)
-    # Also explicitly check status to prevent adding items to paid orders
-    existing_order = None
-    for order in potential_orders:
-        # Explicitly check if order is paid (defensive check)
-        if order.status == models.OrderStatus.paid:
-            print(f"[DEBUG] Skipping order #{order.id} - status is paid")
-            continue
-        
-        has_paid_note = "[PAID:" in (order.notes or "")
-        if not has_paid_note:
-            existing_order = order
-            break
-        else:
-            print(
-                f"[DEBUG] Skipping order #{order.id} - has [PAID:] in notes despite status={order.status!r}"
+    print(f"[DEBUG] Table: id={table.id}, name={table.name}, is_active={table.is_active}")
+    print(f"[DEBUG] Using shared order #{order.id}")
+
+    # ============ LOCATION VERIFICATION ============
+    location_flagged = False
+    if tenant and tenant.location_check_enabled and tenant.latitude and tenant.longitude:
+        if order_data.latitude is not None and order_data.longitude is not None:
+            distance = haversine_distance(
+                tenant.latitude, tenant.longitude,
+                order_data.latitude, order_data.longitude
             )
-
-    print(f"[DEBUG] Query result after filtering: {existing_order}")
-    if existing_order:
-        # Final safety check: never reuse a paid order
-        if existing_order.status == models.OrderStatus.paid:
-            print(f"[DEBUG] Found order #{existing_order.id} is paid - will create new order instead")
-            existing_order = None
+            print(f"[DEBUG] Location check: customer at {order_data.latitude}, {order_data.longitude}")
+            print(f"[DEBUG] Distance from restaurant: {distance:.0f}m (radius: {tenant.location_radius_meters}m)")
+            
+            if distance > tenant.location_radius_meters:
+                location_flagged = True
+                order.flagged_for_review = True
+                order.flag_reason = f"Order placed from {distance:.0f}m away (limit: {tenant.location_radius_meters}m)"
+                print(f"[DEBUG] ORDER FLAGGED: {order.flag_reason}")
         else:
-            print(f"[DEBUG] Found existing order #{existing_order.id} with status={existing_order.status!r}")
-    else:
-        print(f"[DEBUG] No existing unpaid order found - will create new one")
+            print(f"[DEBUG] Location not provided by customer")
+    
+    # Update customer name if provided (for display purposes)
+    if order_data.customer_name and not order.customer_name:
+        order.customer_name = order_data.customer_name
 
-    is_new_order = existing_order is None
-
-    if is_new_order:
-        # Generate session_id if not provided (for backward compatibility)
-        session_id = order_data.session_id
-        if not session_id:
-            session_id = str(uuid4())
-            print(f"[DEBUG] Generated new session_id: {session_id}")
-        
-        # Create new order
-        order = models.Order(
-            tenant_id=table.tenant_id,
-            table_id=table.id,
-            session_id=session_id,
-            customer_name=order_data.customer_name,
-            notes=order_data.notes
-        )
-        session.add(order)
-        session.commit()
-        session.refresh(order)
-        print(f"[DEBUG] Created NEW order #{order.id} with session_id={session_id}, customer_name={order_data.customer_name}")
-    else:
-        order = existing_order
-        print(f"[DEBUG] REUSING existing order #{order.id}")
-        # Append notes if provided
-        if order_data.notes:
-            order.notes = f"{order.notes or ''}\n{order_data.notes}".strip()
+    # Append notes if provided
+    if order_data.notes:
+        order.notes = f"{order.notes or ''}\n{order_data.notes}".strip()
 
     print(f"[DEBUG] Final order #{order.id}, status={order.status!r}")
     print(f"{'=' * 60}\n")
+    
+    is_new_order = False  # We're always adding to existing shared order
 
     # Add order items
     for item in order_data.items:
@@ -2712,6 +3048,9 @@ def create_order(
                 existing_item.notes = (
                     f"{existing_item.notes or ''}, {item.notes}".strip(", ")
                 )
+            # If this addition is from a flagged location, mark the item
+            if location_flagged:
+                existing_item.location_flagged = True
             session.add(existing_item)
         else:
             # Create new order item with default status
@@ -2725,7 +3064,9 @@ def create_order(
                 quantity=item.quantity,
                 price_cents=price_cents,
                 notes=item.notes,
-                status=models.OrderItemStatus.pending  # New items start as pending
+                status=models.OrderItemStatus.pending,  # New items start as pending
+                added_by_session=order_data.session_id,  # Track which browser added this
+                location_flagged=location_flagged  # Flag if from suspicious location
             )
             session.add(order_item)
     
@@ -2809,7 +3150,7 @@ def compute_order_status_from_items(items: list[models.OrderItem]) -> models.Ord
 
 @app.get("/orders")
 def list_orders(
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_READ))],
     include_removed: bool = Query(False, description="Include removed items in response"),
     session: Session = Depends(get_session)
 ) -> list[dict]:
@@ -2888,7 +3229,7 @@ def list_orders(
 def update_order_status(
     order_id: int,
     status_update: models.OrderStatusUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_UPDATE_STATUS))],
     session: Session = Depends(get_session),
 ) -> dict:
     order = session.exec(
@@ -2950,7 +3291,7 @@ def update_order_status(
 def mark_order_paid(
     order_id: int,
     payment_data: models.OrderMarkPaid,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_MARK_PAID))],
     session: Session = Depends(get_session)
 ) -> dict:
     """Mark order as paid manually (for cash/terminal payments)."""
@@ -3002,7 +3343,7 @@ def update_order_item_status(
     order_id: int,
     item_id: int,
     status_update: models.OrderItemStatusUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_ITEM_STATUS))],
     session: Session = Depends(get_session)
 ) -> dict:
     """Update individual order item status (restaurant staff)."""
@@ -3072,7 +3413,7 @@ def update_order_item_status(
 def reset_item_status(
     order_id: int,
     item_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_ITEM_STATUS))],
     session: Session = Depends(get_session)
 ) -> dict:
     """Reset item status from preparing to pending (restaurant staff only)."""
@@ -3146,7 +3487,7 @@ def cancel_order_item_staff(
     order_id: int,
     item_id: int,
     cancel_data: models.OrderItemCancel,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_CANCEL))],
     session: Session = Depends(get_session)
 ) -> dict:
     """Cancel order item (restaurant staff) - requires reason if item is ready."""
@@ -3227,7 +3568,7 @@ def update_order_item_staff(
     order_id: int,
     item_id: int,
     item_update: models.OrderItemStaffUpdate,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_REMOVE_ITEM))],
     session: Session = Depends(get_session)
 ) -> dict:
     """Update order item (restaurant staff) - can modify any item except delivered."""
@@ -3311,7 +3652,7 @@ def update_order_item_staff(
 def remove_order_item_staff(
     order_id: int,
     item_id: int,
-    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    current_user: Annotated[models.User, Depends(require_permission(Permission.ORDER_REMOVE_ITEM))],
     reason: str | None = Query(None, description="Required reason when removing ready items"),
     session: Session = Depends(get_session)
 ) -> dict:

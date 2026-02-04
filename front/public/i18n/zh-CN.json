@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "保存",
+    "SAVING": "保存中...",
     "CANCEL": "取消",
     "DELETE": "删除",
     "EDIT": "编辑",
@@ -45,6 +46,7 @@
     "REPORTS": "报告",
     "TRANSLATIONS": "翻译",
     "SETTINGS": "设置",
+    "USERS": "用户",
     "LOGOUT": "退出登录"
   },
   "DASHBOARD": {
@@ -101,7 +103,12 @@
     "ELABORATION": "制作工艺",
     "ITEMS_ADDED_TO_ORDER": "项目已添加到订单 #{{orderId}}",
     "CHECKOUT": "结账",
-    "DONE": "完成"
+    "DONE": "完成",
+    "WHATS_YOUR_NAME": "您叫什么名字？",
+    "NAME_OPTIONAL": "（可选 - 您可以跳过）",
+    "ENTER_NAME": "请输入您的名字",
+    "ENTER_PIN": "输入餐桌PIN码",
+    "PIN_HINT": "请向服务员索取4位数PIN码"
   },
   "PRODUCTS": {
     "TITLE": "产品",
@@ -309,7 +316,12 @@
     "SHAPE_OVAL_6": "椭圆形 (6)",
     "SHAPE_BOOTH_4": "卡座 (4)",
     "SHAPE_BAR_6": "吧台 (6)",
-    "DEFAULT_TABLE_NAME": "餐桌 {{number}}"
+    "DEFAULT_TABLE_NAME": "餐桌 {{number}}",
+    "ACTIVE": "已激活",
+    "INACTIVE": "未激活",
+    "ACTIVATE": "激活",
+    "CLOSE_TABLE": "关闭餐桌",
+    "NEW_PIN": "新PIN码"
   },
   "TABLE_STATUS": {
     "available": "空闲",
@@ -378,6 +390,15 @@
     "STRIPE_PUBLISHABLE_HINT": "您的 Stripe 可公开密钥",
     "STRIPE_SECRET_KEY": "Stripe 密钥",
     "STRIPE_SECRET_PLACEHOLDER": "sk_test_... 或留空以保留当前值",
+    "LOCATION_VERIFICATION": "位置验证",
+    "LOCATION_VERIFICATION_DESC": "标记从您餐厅外下的订单",
+    "ENABLE_LOCATION_CHECK": "启用位置验证",
+    "ENABLE_LOCATION_CHECK_HINT": "超出半径范围的订单将被标记待审核",
+    "LATITUDE": "纬度",
+    "LONGITUDE": "经度",
+    "LOCATION_RADIUS": "半径（米）",
+    "LOCATION_RADIUS_HINT": "超出此半径的订单将被标记",
+    "USE_CURRENT_LOCATION": "使用当前位置",
     "STRIPE_SECRET_HINT": "您的 Stripe 密钥。留空以保留当前值。",
     "IMMEDIATE_PAYMENT_HINT": "启用后，客户必须支付后才能下单。",
     "LOADING_SETTINGS": "设置加载中...",
@@ -604,6 +625,28 @@
     "ready": "就绪",
     "delivered": "已送达",
     "cancelled": "已取消"
+  },
+  "USERS": {
+    "TITLE": "用户管理",
+    "ADD_USER": "添加用户",
+    "EDIT_USER": "编辑用户",
+    "DELETE_USER": "删除用户",
+    "EMAIL": "电子邮件",
+    "FULL_NAME": "全名",
+    "ROLE": "角色",
+    "PASSWORD": "密码",
+    "NEW_PASSWORD": "新密码",
+    "LEAVE_BLANK": "留空以保留当前密码",
+    "NO_USERS": "未找到用户",
+    "DELETE_CONFIRM_TITLE": "删除用户",
+    "DELETE_CONFIRM_MESSAGE": "您确定要删除 {{name}} 吗？此操作无法撤销。",
+    "ROLES": {
+      "OWNER": "所有者",
+      "ADMIN": "管理员",
+      "KITCHEN": "厨房人员",
+      "WAITER": "服务员",
+      "RECEPTIONIST": "接待员"
+    }
   },
   "TRANSLATIONS": {
     "SELECT_ITEM_TO_TRANSLATE": "选择要翻译的项目",

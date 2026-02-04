@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "सहेजें",
+    "SAVING": "सहेज रहा है...",
     "CANCEL": "रद्द करें",
     "DELETE": "हटाएं",
     "EDIT": "संपादित करें",
@@ -45,6 +46,7 @@
     "REPORTS": "रिपोर्ट",
     "TRANSLATIONS": "अनुवाद",
     "SETTINGS": "सेटिंग्स",
+    "USERS": "उपयोगकर्ता",
     "LOGOUT": "लॉग आउट"
   },
   "DASHBOARD": {
@@ -101,7 +103,12 @@
     "ELABORATION": "निर्माण",
     "ITEMS_ADDED_TO_ORDER": "आइटम ऑर्डर #{{orderId}} में जोड़े गए",
     "CHECKOUT": "चेकआउट",
-    "DONE": "हो गया"
+    "DONE": "हो गया",
+    "WHATS_YOUR_NAME": "आपका नाम क्या है?",
+    "NAME_OPTIONAL": "(वैकल्पिक - आप छोड़ सकते हैं)",
+    "ENTER_NAME": "अपना नाम दर्ज करें",
+    "ENTER_PIN": "टेबल PIN दर्ज करें",
+    "PIN_HINT": "अपने वेटर से 4 अंकों का PIN पूछें"
   },
   "PRODUCTS": {
     "TITLE": "उत्पाद",
@@ -309,7 +316,12 @@
     "SHAPE_OVAL_6": "अंडाकार (6)",
     "SHAPE_BOOTH_4": "बूथ (4)",
     "SHAPE_BAR_6": "बार (6)",
-    "DEFAULT_TABLE_NAME": "टेबल {{number}}"
+    "DEFAULT_TABLE_NAME": "टेबल {{number}}",
+    "ACTIVE": "सक्रिय",
+    "INACTIVE": "निष्क्रिय",
+    "ACTIVATE": "सक्रिय करें",
+    "CLOSE_TABLE": "टेबल बंद करें",
+    "NEW_PIN": "नया PIN"
   },
   "TABLE_STATUS": {
     "available": "उपलब्ध",
@@ -378,6 +390,15 @@
     "STRIPE_PUBLISHABLE_HINT": "आपकी Stripe प्रकटीकरण कुंजी",
     "STRIPE_SECRET_KEY": "Stripe गुप्त कुंजी",
     "STRIPE_SECRET_PLACEHOLDER": "sk_test_... या वर्तमान रखने के लिए खाली छोड़ें",
+    "LOCATION_VERIFICATION": "स्थान सत्यापन",
+    "LOCATION_VERIFICATION_DESC": "आपके रेस्तरां के बाहर से दिए गए ऑर्डर को चिह्नित करें",
+    "ENABLE_LOCATION_CHECK": "स्थान सत्यापन सक्षम करें",
+    "ENABLE_LOCATION_CHECK_HINT": "रेडियस के बाहर के ऑर्डर समीक्षा के लिए चिह्नित होंगे",
+    "LATITUDE": "अक्षांश",
+    "LONGITUDE": "देशांतर",
+    "LOCATION_RADIUS": "त्रिज्या (मीटर)",
+    "LOCATION_RADIUS_HINT": "इस त्रिज्या के बाहर के ऑर्डर चिह्नित होंगे",
+    "USE_CURRENT_LOCATION": "वर्तमान स्थान का उपयोग करें",
     "STRIPE_SECRET_HINT": "आपकी Stripe गुप्त कुंजी। वर्तमान मान रखने के लिए खाली छोड़ें।",
     "IMMEDIATE_PAYMENT_HINT": "सक्षम होने पर, ग्राहकों को ऑर्डर देने के लिए भुगतान करना होगा।",
     "LOADING_SETTINGS": "सेटिंग्स लोड हो रही हैं...",
@@ -604,6 +625,28 @@
     "ready": "तैयार",
     "delivered": "डिलीवर किया गया",
     "cancelled": "रद्द"
+  },
+  "USERS": {
+    "TITLE": "उपयोगकर्ता प्रबंधन",
+    "ADD_USER": "उपयोगकर्ता जोड़ें",
+    "EDIT_USER": "उपयोगकर्ता संपादित करें",
+    "DELETE_USER": "उपयोगकर्ता हटाएं",
+    "EMAIL": "ईमेल",
+    "FULL_NAME": "पूरा नाम",
+    "ROLE": "भूमिका",
+    "PASSWORD": "पासवर्ड",
+    "NEW_PASSWORD": "नया पासवर्ड",
+    "LEAVE_BLANK": "वर्तमान रखने के लिए खाली छोड़ें",
+    "NO_USERS": "कोई उपयोगकर्ता नहीं मिला",
+    "DELETE_CONFIRM_TITLE": "उपयोगकर्ता हटाएं",
+    "DELETE_CONFIRM_MESSAGE": "क्या आप वाकई {{name}} को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+    "ROLES": {
+      "OWNER": "मालिक",
+      "ADMIN": "व्यवस्थापक",
+      "KITCHEN": "किचन स्टाफ",
+      "WAITER": "वेटर",
+      "RECEPTIONIST": "रिसेप्शनिस्ट"
+    }
   },
   "TRANSLATIONS": {
     "SELECT_ITEM_TO_TRANSLATE": "अनुवाद के लिए आइटम चुनें",

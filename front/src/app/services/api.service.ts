@@ -4,9 +4,28 @@ import { Observable, BehaviorSubject, tap, Subject, catchError, of } from 'rxjs'
 import { environment } from '../../environments/environment';
 
 // Interfaces
+export type UserRole = 'owner' | 'admin' | 'kitchen' | 'waiter' | 'receptionist';
+
 export interface User {
+  id?: number;
   email: string;
+  full_name?: string;
   tenant_id: number;
+  role: UserRole;
+}
+
+export interface UserCreate {
+  email: string;
+  password: string;
+  full_name?: string;
+  role: UserRole;
+}
+
+export interface UserUpdate {
+  email?: string;
+  full_name?: string;
+  role?: UserRole;
+  password?: string;
 }
 
 export interface AuthResponse {
@@ -73,6 +92,27 @@ export interface Table {
   width?: number;
   height?: number;
   seat_count?: number;
+  // Table session and PIN security
+  order_pin?: string | null;
+  is_active?: boolean;
+  active_order_id?: number | null;
+  activated_at?: string | null;
+}
+
+export interface TableActivateResponse {
+  id: number;
+  name: string;
+  pin: string;
+  is_active: boolean;
+  active_order_id: number;
+  activated_at: string | null;
+}
+
+export interface TableCloseResponse {
+  id: number;
+  name: string;
+  is_active: boolean;
+  message: string;
 }
 
 export interface CanvasTable extends Table {
@@ -121,6 +161,10 @@ export interface MenuResponse {
   tenant_currency_code?: string | null;
   tenant_stripe_publishable_key?: string | null;
   tenant_immediate_payment_required?: boolean;
+  // Table session status
+  table_is_active?: boolean;
+  table_requires_pin?: boolean;
+  active_order_id?: number | null;
   products: Product[];
 }
 
@@ -144,6 +188,11 @@ export interface TenantSettings {
   stripe_publishable_key?: string | null;
   logo_size_bytes?: number | null;
   logo_size_formatted?: string | null;
+  // Location verification settings
+  latitude?: number | null;
+  longitude?: number | null;
+  location_radius_meters?: number | null;
+  location_check_enabled?: boolean;
 }
 
 export interface OrderItemCreate {
@@ -158,6 +207,9 @@ export interface OrderCreate {
   notes?: string;
   session_id?: string;  // Session identifier for order isolation
   customer_name?: string;  // Optional customer name
+  pin?: string;  // Required PIN for table ordering
+  latitude?: number | null;  // Optional GPS latitude for location verification
+  longitude?: number | null;  // Optional GPS longitude for location verification
 }
 
 // Provider & Catalog Interfaces
@@ -393,6 +445,19 @@ export class ApiService {
 
   deleteTable(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/tables/${id}`);
+  }
+
+  // Table Session Management
+  activateTable(tableId: number): Observable<TableActivateResponse> {
+    return this.http.post<TableActivateResponse>(`${this.apiUrl}/tables/${tableId}/activate`, {});
+  }
+
+  closeTable(tableId: number): Observable<TableCloseResponse> {
+    return this.http.post<TableCloseResponse>(`${this.apiUrl}/tables/${tableId}/close`, {});
+  }
+
+  regenerateTablePin(tableId: number): Observable<TableActivateResponse> {
+    return this.http.post<TableActivateResponse>(`${this.apiUrl}/tables/${tableId}/regenerate-pin`, {});
   }
 
   // Orders
@@ -691,5 +756,22 @@ export class ApiService {
 
   updateTranslations(entityType: string, entityId: number, translations: any): Observable<{ message: string; updated: string[] }> {
     return this.http.put<{ message: string; updated: string[] }>(`${this.apiUrl}/i18n/${entityType}/${entityId}`, translations);
+  }
+
+  // User Management
+  getUsers(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.apiUrl}/users`);
+  }
+
+  createUser(userData: UserCreate): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/users`, userData);
+  }
+
+  updateUser(userId: number, userData: UserUpdate): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/users/${userId}`, userData);
+  }
+
+  deleteUser(userId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/users/${userId}`);
   }
 }

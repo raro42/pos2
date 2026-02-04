@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "Desar",
+    "SAVING": "Desant...",
     "CANCEL": "Cancel·lar",
     "DELETE": "Eliminar",
     "EDIT": "Editar",
@@ -45,6 +46,7 @@
     "REPORTS": "Informes",
     "TRANSLATIONS": "Traduccions",
     "SETTINGS": "Configuració",
+    "USERS": "Usuaris",
     "LOGOUT": "Tancar sessió"
   },
   "DASHBOARD": {
@@ -101,7 +103,12 @@
     "ELABORATION": "Elaboració",
     "ITEMS_ADDED_TO_ORDER": "Articles afegits a la comanda #{{orderId}}",
     "CHECKOUT": "Pagament",
-    "DONE": "Fet"
+    "DONE": "Fet",
+    "WHATS_YOUR_NAME": "Com et dius?",
+    "NAME_OPTIONAL": "(opcional - pots ometre-ho)",
+    "ENTER_NAME": "Introdueix el teu nom",
+    "ENTER_PIN": "Introdueix el PIN de la taula",
+    "PIN_HINT": "Demana el PIN de 4 dígits al teu cambrer"
   },
   "PRODUCTS": {
     "TITLE": "Productes",
@@ -309,7 +316,12 @@
     "SHAPE_OVAL_6": "Oval (6)",
     "SHAPE_BOOTH_4": "Reservat (4)",
     "SHAPE_BAR_6": "Barra (6)",
-    "DEFAULT_TABLE_NAME": "Taula {{number}}"
+    "DEFAULT_TABLE_NAME": "Taula {{number}}",
+    "ACTIVE": "Activa",
+    "INACTIVE": "Inactiva",
+    "ACTIVATE": "Activar",
+    "CLOSE_TABLE": "Tancar Taula",
+    "NEW_PIN": "Nou PIN"
   },
   "TABLE_STATUS": {
     "available": "Disponible",
@@ -378,6 +390,15 @@
     "STRIPE_PUBLISHABLE_HINT": "La teva clau publicable de Stripe",
     "STRIPE_SECRET_KEY": "Clau Secreta de Stripe",
     "STRIPE_SECRET_PLACEHOLDER": "sk_test_... o deixar en blanc per mantenir l'actual",
+    "LOCATION_VERIFICATION": "Verificació d'ubicació",
+    "LOCATION_VERIFICATION_DESC": "Marca les comandes fetes des de fora de la ubicació del teu restaurant",
+    "ENABLE_LOCATION_CHECK": "Activar verificació d'ubicació",
+    "ENABLE_LOCATION_CHECK_HINT": "Les comandes des de fora del radi es marcaran per revisar",
+    "LATITUDE": "Latitud",
+    "LONGITUDE": "Longitud",
+    "LOCATION_RADIUS": "Radi (metres)",
+    "LOCATION_RADIUS_HINT": "Les comandes fora d'aquest radi es marcaran",
+    "USE_CURRENT_LOCATION": "Usar ubicació actual",
     "STRIPE_SECRET_HINT": "La teva clau secreta de Stripe. Deixar en blanc per mantenir el valor actual.",
     "IMMEDIATE_PAYMENT_HINT": "Quan està activat, els clients han de pagar per fer la comanda.",
     "LOADING_SETTINGS": "Carregant la configuració...",
@@ -604,6 +625,28 @@
     "ready": "Llest",
     "delivered": "Lliurat",
     "cancelled": "Cancel·lat"
+  },
+  "USERS": {
+    "TITLE": "Gestió d'Usuaris",
+    "ADD_USER": "Afegir Usuari",
+    "EDIT_USER": "Editar Usuari",
+    "DELETE_USER": "Eliminar Usuari",
+    "EMAIL": "Correu electrònic",
+    "FULL_NAME": "Nom complet",
+    "ROLE": "Rol",
+    "PASSWORD": "Contrasenya",
+    "NEW_PASSWORD": "Nova contrasenya",
+    "LEAVE_BLANK": "deixar en blanc per mantenir l'actual",
+    "NO_USERS": "No s'han trobat usuaris",
+    "DELETE_CONFIRM_TITLE": "Eliminar Usuari",
+    "DELETE_CONFIRM_MESSAGE": "Estàs segur que vols eliminar {{name}}? Aquesta acció no es pot desfer.",
+    "ROLES": {
+      "OWNER": "Propietari",
+      "ADMIN": "Administrador",
+      "KITCHEN": "Personal de Cuina",
+      "WAITER": "Cambrer",
+      "RECEPTIONIST": "Recepcionista"
+    }
   },
   "TRANSLATIONS": {
     "SELECT_ITEM_TO_TRANSLATE": "Selecciona element per traduir",

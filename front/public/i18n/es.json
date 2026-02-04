@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "Guardar",
+    "SAVING": "Guardando...",
     "CANCEL": "Cancelar",
     "DELETE": "Eliminar",
     "EDIT": "Editar",
@@ -48,6 +49,7 @@
     "REPORTS": "Informes",
     "TRANSLATIONS": "Traducciones",
     "SETTINGS": "Configuración",
+    "USERS": "Usuarios",
     "LOGOUT": "Cerrar sesión"
   },
   "DASHBOARD": {
@@ -115,7 +117,9 @@
     "NO_PRODUCTS": "No se encontraron productos",
     "WHATS_YOUR_NAME": "¿Cuál es tu nombre?",
     "NAME_OPTIONAL": "(opcional - puedes omitirlo)",
-    "ENTER_NAME": "Introduce tu nombre"
+    "ENTER_NAME": "Introduce tu nombre",
+    "ENTER_PIN": "Introduce el PIN de la mesa",
+    "PIN_HINT": "Pide el PIN de 4 dígitos a tu camarero"
   },
   "PRODUCTS": {
     "TITLE": "Productos",
@@ -330,7 +334,12 @@
     "SHAPE_OVAL_6": "Ovalada (6)",
     "SHAPE_BOOTH_4": "Reservado (4)",
     "SHAPE_BAR_6": "Barra (6)",
-    "DEFAULT_TABLE_NAME": "Mesa {{number}}"
+    "DEFAULT_TABLE_NAME": "Mesa {{number}}",
+    "ACTIVE": "Activa",
+    "INACTIVE": "Inactiva",
+    "ACTIVATE": "Activar",
+    "CLOSE_TABLE": "Cerrar Mesa",
+    "NEW_PIN": "Nuevo PIN"
   },
   "TABLE_STATUS": {
     "available": "Disponible",
@@ -408,7 +417,16 @@
     "SELECT_LANGUAGE": "Seleccionar idioma",
     "LANGUAGE_HINT": "Se aplica al menú público y a la interfaz de administración por defecto.",
     "STRIPE_PUBLISHABLE_PLACEHOLDER": "pk_test_...",
-    "STRIPE_SECRET_PLACEHOLDER": "sk_test_... o dejar en blanco para mantener actual"
+    "STRIPE_SECRET_PLACEHOLDER": "sk_test_... o dejar en blanco para mantener actual",
+    "LOCATION_VERIFICATION": "Verificación de ubicación",
+    "LOCATION_VERIFICATION_DESC": "Marcar pedidos realizados desde fuera de la ubicación de tu restaurante",
+    "ENABLE_LOCATION_CHECK": "Activar verificación de ubicación",
+    "ENABLE_LOCATION_CHECK_HINT": "Los pedidos desde fuera del radio se marcarán para revisión",
+    "LATITUDE": "Latitud",
+    "LONGITUDE": "Longitud",
+    "LOCATION_RADIUS": "Radio (metros)",
+    "LOCATION_RADIUS_HINT": "Los pedidos fuera de este radio se marcarán",
+    "USE_CURRENT_LOCATION": "Usar ubicación actual"
   },
   "PAYMENTS": {
     "PAYMENT": "Pago",
@@ -619,6 +637,28 @@
       "FLUID_OUNCE": "Onza líquida",
       "CUP": "Taza",
       "GALLON": "Galón"
+    }
+  },
+  "USERS": {
+    "TITLE": "Gestión de Usuarios",
+    "ADD_USER": "Añadir Usuario",
+    "EDIT_USER": "Editar Usuario",
+    "DELETE_USER": "Eliminar Usuario",
+    "EMAIL": "Correo electrónico",
+    "FULL_NAME": "Nombre completo",
+    "ROLE": "Rol",
+    "PASSWORD": "Contraseña",
+    "NEW_PASSWORD": "Nueva contraseña",
+    "LEAVE_BLANK": "dejar en blanco para mantener la actual",
+    "NO_USERS": "No se encontraron usuarios",
+    "DELETE_CONFIRM_TITLE": "Eliminar Usuario",
+    "DELETE_CONFIRM_MESSAGE": "¿Estás seguro de que quieres eliminar a {{name}}? Esta acción no se puede deshacer.",
+    "ROLES": {
+      "OWNER": "Propietario",
+      "ADMIN": "Administrador",
+      "KITCHEN": "Personal de Cocina",
+      "WAITER": "Camarero",
+      "RECEPTIONIST": "Recepcionista"
     }
   },
   "TRANSLATIONS": {

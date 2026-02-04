@@ -24,6 +24,14 @@ class BusinessType(str, Enum):
     other = "other"
 
 
+class UserRole(str, Enum):
+    owner = "owner"
+    admin = "admin"
+    kitchen = "kitchen"
+    waiter = "waiter"
+    receptionist = "receptionist"
+
+
 class Tenant(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -67,6 +75,12 @@ class Tenant(SQLModel, table=True):
     #     default=False
     # )  # Enable auto-deduction on orders
 
+    # Location verification for GPS-based order validation
+    latitude: float | None = Field(default=None)
+    longitude: float | None = Field(default=None)
+    location_radius_meters: int = Field(default=100)  # Default 100m radius
+    location_check_enabled: bool = Field(default=False)
+
     users: list["User"] = Relationship(back_populates="tenant")
 
 
@@ -76,6 +90,7 @@ class User(SQLModel, table=True):
     hashed_password: str
     full_name: str | None = None
     token_version: int = Field(default=0)  # Increment to invalidate all tokens
+    role: UserRole = Field(default=UserRole.waiter)  # User role for RBAC
 
     tenant_id: int | None = Field(default=None, foreign_key="tenant.id")
     tenant: Tenant | None = Relationship(back_populates="users")
@@ -226,6 +241,12 @@ class Table(TenantMixin, table=True):
     height: float = Field(default=60)
     seat_count: int = Field(default=4)
 
+    # Table session and PIN security
+    order_pin: str | None = Field(default=None)  # 4-digit PIN for ordering
+    is_active: bool = Field(default=False, index=True)  # Whether table is accepting orders
+    active_order_id: int | None = Field(default=None)  # Current shared order for this table
+    activated_at: datetime | None = Field(default=None)  # When table was activated
+
 
 class Order(TenantMixin, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -244,6 +265,11 @@ class Order(TenantMixin, table=True):
     paid_at: datetime | None = None
     paid_by_user_id: int | None = None  # Who marked it as paid (staff)
     payment_method: str | None = None  # 'stripe', 'cash', 'terminal', etc.
+
+    # Location verification tracking
+    location_verified: bool | None = Field(default=None)  # None=not checked, True=inside, False=outside
+    flagged_for_review: bool = Field(default=False)  # Order needs staff attention
+    flag_reason: str | None = Field(default=None)  # Why order was flagged
     
     items: list["OrderItem"] = Relationship(back_populates="order")
 
@@ -281,6 +307,10 @@ class OrderItem(SQLModel, table=True):
     modified_by_user_id: int | None = None  # Who modified this item (staff)
     modified_at: datetime | None = None  # When was it modified
     cancelled_reason: str | None = None  # Required when cancelling ready items (for tax authorities)
+
+    # Session tracking and location flagging
+    added_by_session: str | None = Field(default=None)  # Which browser session added this item
+    location_flagged: bool = Field(default=False)  # Item was added from suspicious location
     
     order: Order = Relationship(back_populates="items")
 
@@ -291,6 +321,31 @@ class UserRegister(SQLModel):
     email: str
     password: str
     full_name: str | None = None
+
+
+class UserCreate(SQLModel):
+    """Model for creating a new user within a tenant (by admin/owner)."""
+    email: str
+    password: str
+    full_name: str | None = None
+    role: UserRole = UserRole.waiter
+
+
+class UserUpdate(SQLModel):
+    """Model for updating an existing user."""
+    email: str | None = None
+    full_name: str | None = None
+    role: UserRole | None = None
+    password: str | None = None  # Optional: only update if provided
+
+
+class UserResponse(SQLModel):
+    """Model for user response (without sensitive data)."""
+    id: int
+    email: str
+    full_name: str | None = None
+    role: UserRole
+    tenant_id: int | None = None
 
 
 class ProductUpdate(SQLModel):
@@ -340,6 +395,9 @@ class OrderCreate(SQLModel):
     notes: str | None = None
     session_id: str | None = None  # Session identifier for order isolation
     customer_name: str | None = None  # Optional customer name
+    pin: str | None = None  # Required PIN for table ordering
+    latitude: float | None = None  # Optional GPS latitude for location verification
+    longitude: float | None = None  # Optional GPS longitude for location verification
 
 
 class OrderStatusUpdate(SQLModel):
@@ -395,6 +453,12 @@ class TenantUpdate(SQLModel):
     stripe_secret_key: str | None = None
     stripe_publishable_key: str | None = None
     # inventory_tracking_enabled: bool | None = None  # Commented out - migration not applied
+
+    # Location verification settings
+    latitude: float | None = None
+    longitude: float | None = None
+    location_radius_meters: int | None = None
+    location_check_enabled: bool | None = None
 
 
 class TenantProductCreate(SQLModel):

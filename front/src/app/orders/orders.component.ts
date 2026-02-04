@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService, Order, OrderItem } from '../services/api.service';
 import { AudioService } from '../services/audio.service';
+import { PermissionService, Permission } from '../services/permission.service';
 import { Subscription } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
 import { SidebarComponent } from '../shared/sidebar.component';
@@ -236,7 +237,7 @@ ModuleRegistry.registerModules([
                                   }
                                 </div>
                               }
-                              @if (order.status === 'completed') {
+                              @if (order.status === 'completed' && canMarkPaid()) {
                                 <div class="dropdown-section">
                                   <button 
                                     class="dropdown-item forward"
@@ -362,16 +363,18 @@ ModuleRegistry.registerModules([
                                     }
                                   </div>
                                 }
-                                <div class="dropdown-section">
-                                  <button 
-                                    class="dropdown-item forward"
-                                    (click)="markAsPaid(order); statusDropdownOpen.set(null)">
-                                    {{ 'ORDERS.MARK_AS_PAID' | translate }}
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <polyline points="9,18 15,12 9,6"/>
-                                    </svg>
-                                  </button>
-                                </div>
+                                @if (canMarkPaid()) {
+                                  <div class="dropdown-section">
+                                    <button 
+                                      class="dropdown-item forward"
+                                      (click)="markAsPaid(order); statusDropdownOpen.set(null)">
+                                      {{ 'ORDERS.MARK_AS_PAID' | translate }}
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9,18 15,12 9,6"/>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                }
                               </div>
                             }
                           </div>
@@ -1160,6 +1163,14 @@ export class OrdersComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private audio = inject(AudioService);
   private translate = inject(TranslateService);
+  private permissions = inject(PermissionService);
+
+  // Permission checks for UI
+  canUpdateStatus = computed(() => this.permissions.hasPermission(this.api.getCurrentUser(), 'order:update_status'));
+  canUpdateItemStatus = computed(() => this.permissions.hasPermission(this.api.getCurrentUser(), 'order:item_status'));
+  canMarkPaid = computed(() => this.permissions.hasPermission(this.api.getCurrentUser(), 'order:mark_paid'));
+  canCancelOrder = computed(() => this.permissions.hasPermission(this.api.getCurrentUser(), 'order:cancel'));
+  canRemoveItem = computed(() => this.permissions.hasPermission(this.api.getCurrentUser(), 'order:remove_item'));
 
   // Get browser's timezone automatically
   private getBrowserTimezone(): string {

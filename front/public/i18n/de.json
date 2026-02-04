@@ -1,6 +1,7 @@
 {
   "COMMON": {
     "SAVE": "Speichern",
+    "SAVING": "Speichern...",
     "CANCEL": "Abbrechen",
     "DELETE": "Löschen",
     "EDIT": "Bearbeiten",
@@ -45,6 +46,7 @@
     "REPORTS": "Berichte",
     "TRANSLATIONS": "Übersetzungen",
     "SETTINGS": "Einstellungen",
+    "USERS": "Benutzer",
     "LOGOUT": "Abmelden"
   },
   "DASHBOARD": {
@@ -101,7 +103,12 @@
     "ELABORATION": "Herstellung",
     "ITEMS_ADDED_TO_ORDER": "Artikel zur Bestellung #{{orderId}} hinzugefügt",
     "CHECKOUT": "Bezahlen",
-    "DONE": "Fertig"
+    "DONE": "Fertig",
+    "WHATS_YOUR_NAME": "Wie heißen Sie?",
+    "NAME_OPTIONAL": "(optional - Sie können dies überspringen)",
+    "ENTER_NAME": "Geben Sie Ihren Namen ein",
+    "ENTER_PIN": "Tisch-PIN eingeben",
+    "PIN_HINT": "Fragen Sie Ihren Kellner nach der 4-stelligen PIN"
   },
   "PRODUCTS": {
     "TITLE": "Produkte",
@@ -309,7 +316,12 @@
     "SHAPE_OVAL_6": "Oval (6)",
     "SHAPE_BOOTH_4": "Nische (4)",
     "SHAPE_BAR_6": "Bar (6)",
-    "DEFAULT_TABLE_NAME": "Tisch {{number}}"
+    "DEFAULT_TABLE_NAME": "Tisch {{number}}",
+    "ACTIVE": "Aktiv",
+    "INACTIVE": "Inaktiv",
+    "ACTIVATE": "Aktivieren",
+    "CLOSE_TABLE": "Tisch schließen",
+    "NEW_PIN": "Neue PIN"
   },
   "TABLE_STATUS": {
     "available": "Verfügbar",
@@ -378,6 +390,15 @@
     "STRIPE_PUBLISHABLE_HINT": "Ihr öffentlicher Stripe-Schlüssel",
     "STRIPE_SECRET_KEY": "Stripe Secret Key",
     "STRIPE_SECRET_PLACEHOLDER": "sk_test_... oder leer lassen für aktuellen Wert",
+    "LOCATION_VERIFICATION": "Standortüberprüfung",
+    "LOCATION_VERIFICATION_DESC": "Bestellungen von außerhalb Ihres Restaurants markieren",
+    "ENABLE_LOCATION_CHECK": "Standortüberprüfung aktivieren",
+    "ENABLE_LOCATION_CHECK_HINT": "Bestellungen außerhalb des Radius werden zur Überprüfung markiert",
+    "LATITUDE": "Breitengrad",
+    "LONGITUDE": "Längengrad",
+    "LOCATION_RADIUS": "Radius (Meter)",
+    "LOCATION_RADIUS_HINT": "Bestellungen außerhalb dieses Radius werden markiert",
+    "USE_CURRENT_LOCATION": "Aktuellen Standort verwenden",
     "STRIPE_SECRET_HINT": "Ihr geheimer Stripe-Schlüssel. Leer lassen, um den aktuellen Wert beizubehalten.",
     "IMMEDIATE_PAYMENT_HINT": "Wenn aktiviert, müssen Kunden bezahlen, um eine Bestellung aufzugeben.",
     "LOADING_SETTINGS": "Einstellungen werden geladen...",
@@ -604,6 +625,28 @@
     "ready": "Fertig",
     "delivered": "Geliefert",
     "cancelled": "Storniert"
+  },
+  "USERS": {
+    "TITLE": "Benutzerverwaltung",
+    "ADD_USER": "Benutzer hinzufügen",
+    "EDIT_USER": "Benutzer bearbeiten",
+    "DELETE_USER": "Benutzer löschen",
+    "EMAIL": "E-Mail",
+    "FULL_NAME": "Vollständiger Name",
+    "ROLE": "Rolle",
+    "PASSWORD": "Passwort",
+    "NEW_PASSWORD": "Neues Passwort",
+    "LEAVE_BLANK": "leer lassen, um das aktuelle beizubehalten",
+    "NO_USERS": "Keine Benutzer gefunden",
+    "DELETE_CONFIRM_TITLE": "Benutzer löschen",
+    "DELETE_CONFIRM_MESSAGE": "Sind Sie sicher, dass Sie {{name}} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "ROLES": {
+      "OWNER": "Eigentümer",
+      "ADMIN": "Administrator",
+      "KITCHEN": "Küchenpersonal",
+      "WAITER": "Kellner",
+      "RECEPTIONIST": "Empfangsmitarbeiter"
+    }
   },
   "TRANSLATIONS": {
     "SELECT_ITEM_TO_TRANSLATE": "Element zum Übersetzen auswählen",
