@@ -1,0 +1,202 @@
+#!/usr/bin/env node
+/**
+ * Puppeteer test: public (unknown) user books a table — no login.
+ * 1. Open /book/:tenantId
+ * 2. Fill form and submit
+ * 3. Assert success, then optionally open view page and cancel
+ *
+ * Usage (from front/): node scripts/debug-reservations-public.mjs
+ * Optional env: BASE_URL, TENANT_ID (default 1)
+ * Chrome: /Applications/Google Chrome.app (macOS)
+ */
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const puppeteer = require('puppeteer-core');
+
+const CHROME_PATH =
+  process.env.PUPPETEER_EXECUTABLE_PATH ||
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+async function main() {
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    for (const port of [4203, 4202, 4200]) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/`, {
+          method: 'head',
+          signal: AbortSignal.timeout(1500),
+        });
+        if (res.ok || res.status < 500) {
+          baseUrl = `http://127.0.0.1:${port}`;
+          break;
+        }
+      } catch (_) {}
+    }
+    baseUrl = baseUrl || 'http://localhost:4202';
+  }
+  const tenantId = process.env.TENANT_ID || '1';
+  const bookUrl = new URL(`/book/${tenantId}`, baseUrl).href;
+
+  console.log('Launching Chrome at', CHROME_PATH);
+  console.log('App URL:', baseUrl);
+  console.log('Book URL (public, no login):', bookUrl);
+  console.log('---');
+
+  const browser = await puppeteer.launch({
+    executablePath: CHROME_PATH,
+    headless: false,
+    defaultViewport: null,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const page = await browser.newPage();
+
+  const logs = [];
+  page.on('console', (msg) => {
+    const type = msg.type();
+    const text = msg.text();
+    logs.push({ type, msg: text });
+    console.log(`[${type}]`, text);
+  });
+  page.on('pageerror', (err) => {
+    logs.push({ type: 'pageerror', msg: err.message });
+    console.log('[pageerror]', err.message);
+  });
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  try {
+    // 1. Go to public book page (no login)
+    console.log('1. Navigating to public book page (no login)');
+    await page.goto(bookUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    const urlAfterLoad = page.url();
+    console.log('   URL after load:', urlAfterLoad);
+
+    if (!urlAfterLoad.includes('/book/')) {
+      console.log('\n>>> RESULT: Did not land on /book/:tenantId. Aborting.');
+      await browser.close();
+      process.exit(1);
+    }
+
+    await page.waitForSelector('.book-form input[type="date"]', { timeout: 5000 }).catch(() => null);
+    const hasForm = await page.evaluate(() => !!document.querySelector('.book-form'));
+    console.log('   Book form visible:', hasForm);
+    if (!hasForm) {
+      console.log('\n>>> RESULT: Book form not found.');
+      await browser.close();
+      process.exit(1);
+    }
+
+    // 2. Fill form (DOM set to avoid format issues)
+    const testName = 'Public User ' + Date.now();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().slice(0, 10);
+    const timeVal = '20:00';
+    const partySize = 3;
+
+    console.log('2. Filling form:', testName, 'date:', dateStr, 'time:', timeVal, 'party:', partySize);
+    await page.evaluate(
+      ({ name, phone, dateVal, timeVal, partySize }) => {
+        const form = document.querySelector('.book-form');
+        if (!form) return;
+        const inputs = form.querySelectorAll('input');
+        // Order in template: date, time, party size, name, phone
+        const [dateIn, timeIn, numIn, nameIn, phoneIn] = inputs;
+        const setAndDispatch = (el, value) => {
+          if (!el) return;
+          el.value = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        setAndDispatch(dateIn, dateVal);
+        setAndDispatch(timeIn, timeVal);
+        setAndDispatch(numIn, String(partySize));
+        setAndDispatch(nameIn, name);
+        setAndDispatch(phoneIn, phone);
+      },
+      {
+        name: testName,
+        phone: '+34987654321',
+        dateVal: dateStr,
+        timeVal,
+        partySize,
+      }
+    );
+    await sleep(400);
+
+    // 3. Submit
+    console.log('3. Submitting booking');
+    const submitBtn = await page.$('.book-form button[type="submit"]');
+    if (!submitBtn) {
+      console.log('   Submit button not found.');
+      await browser.close();
+      process.exit(1);
+    }
+    await submitBtn.click();
+    await sleep(2500);
+
+    const hasSuccess = await page.evaluate(() => {
+      return (
+        !!document.querySelector('.success-message') ||
+        !!document.querySelector('.view-cancel-hint') ||
+        !!document.querySelector('a[href*="reservation"]')
+      );
+    });
+    const viewCancelHref = await page.evaluate(() => {
+      const a = document.querySelector('a[href*="reservation"]');
+      return a ? a.getAttribute('href') || '' : '';
+    });
+
+    console.log('   Booking success (success UI):', hasSuccess);
+    console.log('   View/Cancel link:', viewCancelHref || '(none)');
+
+    if (!hasSuccess) {
+      const errText = await page.evaluate(() => {
+        const el = document.querySelector('.form-error');
+        return el ? el.textContent : '';
+      });
+      console.log('   Form error:', errText || '(none)');
+      console.log('\n>>> RESULT: Public booking did not show success.');
+      await browser.close();
+      process.exit(1);
+    }
+
+    console.log('\n>>> RESULT: Public user successfully reserved a table.');
+
+    // 4. Optional: open view page and cancel
+    if (viewCancelHref && viewCancelHref.includes('token=')) {
+      console.log('4. Opening reservation view (by token) and cancelling');
+      const viewUrl = viewCancelHref.startsWith('http') ? viewCancelHref : new URL(viewCancelHref, baseUrl).href;
+      await page.goto(viewUrl, { waitUntil: 'networkidle2', timeout: 10000 });
+      await sleep(1500);
+
+      const hasDetails = await page.evaluate(() => !!document.querySelector('.reservation-details'));
+      const cancelBtn = await page.$('.btn-danger');
+      if (hasDetails && cancelBtn) {
+        await cancelBtn.click();
+        await sleep(600);
+        const confirmBtn = await page.$('app-confirmation-modal button[class*="danger"], .btn-danger');
+        if (confirmBtn) {
+          await confirmBtn.click();
+          await sleep(1200);
+          const showsCancelled = await page.evaluate(() => {
+            const body = document.body?.innerText || '';
+            return body.toLowerCase().includes('cancelled');
+          });
+          console.log('   View page showed details:', hasDetails);
+          console.log('   Cancelled via token:', showsCancelled);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error:', err.message);
+    process.exit(1);
+  } finally {
+    console.log('\n--- Console / errors captured:', logs.length);
+    await browser.close();
+  }
+}
+
+main();

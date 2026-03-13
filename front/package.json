@@ -9,7 +9,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:front": "node dist/front/server/server.mjs",
-    "debug:reservations": "node scripts/debug-reservations.mjs"
+    "debug:reservations": "node scripts/debug-reservations.mjs",
+    "debug:reservations:public": "node scripts/debug-reservations-public.mjs"
   },
   "prettier": {
     "printWidth": 100,
