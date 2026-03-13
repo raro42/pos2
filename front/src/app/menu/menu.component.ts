@@ -831,7 +831,9 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.api.getCurrentOrder(this.tableToken, this.sessionId).subscribe({
         next: (response) => {
           if (response.order) {
-            if (response.order.session_id === this.sessionId) {
+            // Show order: table shared order (session_id null) or same session
+            const isSharedOrMine = response.order.session_id == null || response.order.session_id === this.sessionId;
+            if (isSharedOrMine) {
               const activeItems = response.order.items.filter((item: any) => !item.removed_by_customer);
               const order: PlacedOrder = {
                 id: response.order.id,
@@ -872,28 +874,31 @@ export class MenuComponent implements OnInit, OnDestroy {
     if (this.sessionId) {
       this.api.getCurrentOrder(this.tableToken, this.sessionId).subscribe({
         next: (response) => {
-          if (response.order && response.order.session_id === this.sessionId) {
-            const activeItems = response.order.items.filter((item: any) => !item.removed_by_customer);
-            const order: PlacedOrder = {
-              id: response.order.id,
-              items: this.sortItems(activeItems.map((item: any) => ({
-                product: {
-                  id: item.product_id,
-                  name: item.product_name,
-                  price_cents: item.price_cents
-                } as Product,
-                quantity: item.quantity,
-                notes: item.notes || '',
-                status: item.status,
-                itemId: item.id
-              } as CartItem))),
-              notes: response.order.notes || '',
-              total: response.order.total_cents,
-              status: response.order.status
-            };
-            this.placedOrders.set([order]);
-            this.saveOrders();
-            return;
+          if (response.order) {
+            const isSharedOrMine = response.order.session_id == null || response.order.session_id === this.sessionId;
+            if (isSharedOrMine) {
+              const activeItems = response.order.items.filter((item: any) => !item.removed_by_customer);
+              const order: PlacedOrder = {
+                id: response.order.id,
+                items: this.sortItems(activeItems.map((item: any) => ({
+                  product: {
+                    id: item.product_id,
+                    name: item.product_name,
+                    price_cents: item.price_cents
+                  } as Product,
+                  quantity: item.quantity,
+                  notes: item.notes || '',
+                  status: item.status,
+                  itemId: item.id
+                } as CartItem))),
+                notes: response.order.notes || '',
+                total: response.order.total_cents,
+                status: response.order.status
+              };
+              this.placedOrders.set([order]);
+              this.saveOrders();
+              return;
+            }
           }
           this.loadFromLocalStorageFallback();
         },
