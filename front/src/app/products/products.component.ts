@@ -129,7 +129,7 @@ import { CategoriesComponent } from './categories.component';
                            }
                          </div>
                        }
-                       <input type="file" #fileInput accept="image/jpeg,image/png,image/webp" (change)="handleImageSelect($event)" style="display:none">
+                       <input type="file" #fileInput accept="image/jpeg,image/png,image/webp,image/avif" (change)="handleImageSelect($event)" style="display:none">
                        <button type="button" class="btn btn-secondary" (click)="fileInput.click()" [disabled]="uploading()">
                          {{ uploading() ? ('PRODUCTS.UPLOADING' | translate) : (pendingImageFile() ? ('PRODUCTS.CHANGE_IMAGE' | translate) : ('PRODUCTS.UPLOAD_IMAGE' | translate)) }}
                        </button>

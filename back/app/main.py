@@ -157,7 +157,7 @@ app.add_middleware(
 # Uploads directory for product images
 UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/avif"}
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
 
 # Image optimization settings
@@ -166,6 +166,7 @@ MAX_IMAGE_HEIGHT = 1920  # Maximum height in pixels
 JPEG_QUALITY = 85  # JPEG quality (1-100, 85 is a good balance)
 PNG_OPTIMIZE = True  # Enable PNG optimization
 WEBP_QUALITY = 85  # WebP quality (1-100)
+AVIF_QUALITY = 85  # AVIF quality (1-100)
 
 # Static files directory for favicon and other assets
 STATIC_DIR = Path(__file__).parent.parent
@@ -252,6 +253,8 @@ def optimize_image(image_data: bytes, content_type: str) -> bytes:
         elif content_type == "image/png" or original_format == "PNG":
             # PNG optimization
             image.save(output, format="PNG", optimize=PNG_OPTIMIZE)
+        elif content_type == "image/avif" or original_format == "AVIF":
+            image.save(output, format="AVIF", quality=AVIF_QUALITY)
         else:
             # Default to JPEG
             image.save(output, format="JPEG", quality=JPEG_QUALITY, optimize=True)
@@ -1051,7 +1054,7 @@ async def upload_tenant_logo(
 
     # Generate unique filename
     ext = Path(file.filename or "logo.jpg").suffix.lower()
-    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".avif"]:
         ext = ".jpg"
     new_filename = f"{uuid4()}{ext}"
 
@@ -1308,7 +1311,7 @@ async def upload_product_image(
 
     # Generate unique filename
     ext = Path(file.filename or "image.jpg").suffix.lower()
-    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".avif"]:
         ext = ".jpg"
     new_filename = f"{uuid4()}{ext}"
 
