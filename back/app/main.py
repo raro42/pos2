@@ -2428,9 +2428,9 @@ def _parse_reservation_time(s: str) -> time:
         raise ValueError(f"Invalid time format: {s[:8]!r}. Use HH:MM or HH:MM:SS.") from e
 
 
-def _reservation_to_dict(r: models.Reservation) -> dict:
-    """Serialize reservation for JSON (date/time as ISO strings)."""
-    return {
+def _reservation_to_dict(r: models.Reservation, session: Session | None = None) -> dict:
+    """Serialize reservation for JSON (date/time as ISO strings). Includes table_name when table_id set if session provided."""
+    out = {
         "id": r.id,
         "tenant_id": r.tenant_id,
         "customer_name": r.customer_name,
@@ -2444,6 +2444,12 @@ def _reservation_to_dict(r: models.Reservation) -> dict:
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "updated_at": r.updated_at.isoformat() if r.updated_at else None,
     }
+    if session and r.table_id is not None:
+        table = session.get(models.Table, r.table_id)
+        out["table_name"] = table.name if table else None
+    else:
+        out["table_name"] = None
+    return out
 
 
 @app.post("/reservations")
@@ -2492,7 +2498,7 @@ def create_reservation(
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.get("/reservations")
@@ -2517,7 +2523,7 @@ def list_reservations(
         q = q.where(models.Reservation.customer_phone.contains(phone.strip()))
     q = q.order_by(models.Reservation.reservation_date, models.Reservation.reservation_time)
     reservations = session.exec(q).all()
-    return [_reservation_to_dict(r) for r in reservations]
+    return [_reservation_to_dict(r, session) for r in reservations]
 
 
 @app.get("/reservations/next-available")
@@ -2606,7 +2612,7 @@ def get_reservation_by_token(
     ).first()
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.get("/reservations/{reservation_id}")
@@ -2624,7 +2630,7 @@ def get_reservation(
     ).first()
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.put("/reservations/{reservation_id}")
@@ -2659,7 +2665,7 @@ def update_reservation(
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.put("/reservations/{reservation_id}/status")
@@ -2690,7 +2696,7 @@ def update_reservation_status(
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.put("/reservations/{reservation_id}/seat")
@@ -2745,7 +2751,7 @@ def seat_reservation(
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.put("/reservations/{reservation_id}/finish")
@@ -2769,7 +2775,7 @@ def finish_reservation(
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 @app.put("/reservations/{reservation_id}/cancel")
@@ -2788,14 +2794,14 @@ def cancel_reservation_public(
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
     if reservation.status == models.ReservationStatus.cancelled:
-        return _reservation_to_dict(reservation)
+        return _reservation_to_dict(reservation, session)
     reservation.status = models.ReservationStatus.cancelled
     reservation.table_id = None
     reservation.updated_at = datetime.now(timezone.utc)
     session.add(reservation)
     session.commit()
     session.refresh(reservation)
-    return _reservation_to_dict(reservation)
+    return _reservation_to_dict(reservation, session)
 
 
 # ============ TABLE SESSION MANAGEMENT ============

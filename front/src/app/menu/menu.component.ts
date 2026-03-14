@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit, OnDestroy, HostListener } 
 import { FormsModule } from '@angular/forms';
 import { CommonModule, SlicePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { ApiService, Product, OrderItemCreate } from '../services/api.service';
+import { ApiService, Product, OrderItemCreate, OrderHistoryItem } from '../services/api.service';
 import { AudioService } from '../services/audio.service';
 import { environment } from '../../environments/environment';
 import { LanguagePickerComponent } from '../shared/language-picker.component';
@@ -69,6 +69,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   orderNotes = '';
   submitting = signal(false);
   placedOrders = signal<PlacedOrder[]>([]);
+  orderHistory = signal<OrderHistoryItem[]>([]);
+  expandedHistoryId = signal<number | null>(null);
   showSuccessToast = signal(false);
   lastOrderId = signal(0);
   ordersExpanded = signal(true);
@@ -157,6 +159,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.initializeSession();
     this.loadMenu();
     this.loadStoredOrders();
+    this.loadOrderHistory();
   }
 
   ngOnDestroy() {
@@ -971,6 +974,29 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
   }
 
+  loadOrderHistory() {
+    if (!this.tableToken) return;
+    this.api.getOrderHistory(this.tableToken, 10).subscribe({
+      next: (orders) => this.orderHistory.set(orders),
+      error: () => this.orderHistory.set([])
+    });
+  }
+
+  toggleHistoryOrder(id: number) {
+    this.expandedHistoryId.update(prev => prev === id ? null : id);
+  }
+
+  formatHistoryDate(iso: string): string {
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) {
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString(undefined, { dateStyle: 'short' }) + ' ' +
+      d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+
   canCancelOrder(order: PlacedOrder): boolean {
     // Can cancel if order is pending and has no items in preparing/ready/delivered status
     if (order.status === 'paid' || order.status === 'completed' || order.status === 'cancelled') {
@@ -1229,7 +1255,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     const { error, paymentIntent } = await this.stripe.confirmCardPayment(this.clientSecret, {
       payment_method: { card: this.cardElement }
     });
-    if (error) {
+        if (error) {
       this.cardError.set(error.message);
       this.processingPayment.set(false);
     } else if (paymentIntent.status === 'succeeded') {
@@ -1238,6 +1264,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.processingPayment.set(false);
           this.paymentSuccess.set(true);
           this.loadStoredOrders();
+          this.loadOrderHistory();
         },
         error: () => {
           this.processingPayment.set(false);

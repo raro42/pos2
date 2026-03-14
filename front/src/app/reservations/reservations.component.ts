@@ -60,9 +60,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
                 <div>{{ r.reservation_date }} {{ r.reservation_time }}</div>
                 <div>{{ 'RESERVATIONS.PARTY_SIZE' | translate }}: {{ r.party_size }}</div>
                 <div>{{ r.customer_phone }}</div>
-                @if (r.table_id) {
-                  <div class="table-assigned">{{ 'RESERVATIONS.TABLE' | translate }}: {{ getTableName(r.table_id) }}</div>
-                }
+                <div class="table-assigned">{{ 'RESERVATIONS.TABLE' | translate }}: {{ getTableDisplay(r) }}</div>
               </div>
               <div class="card-actions">
                 @if (r.status === 'booked' && canWrite()) {
@@ -260,6 +258,13 @@ export class ReservationsComponent implements OnInit {
 
   getTableName(tableId: number): string {
     return this.tablesWithStatus().find(t => t.id === tableId)?.name ?? String(tableId);
+  }
+
+  /** Table to show in list: API table_name, or lookup by id, or "not assigned". */
+  getTableDisplay(r: Reservation): string {
+    if (r.table_name) return r.table_name;
+    if (r.table_id != null) return this.getTableName(r.table_id);
+    return this.translate.instant('RESERVATIONS.TABLE_NOT_ASSIGNED');
   }
 
   openCreate() {

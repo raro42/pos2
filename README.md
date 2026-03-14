@@ -1,253 +1,255 @@
-# POS System
+# POS2
 
-A Point of Sale system with Angular frontend and FastAPI backend using PostgreSQL, Redis, and WebSocket support for real-time updates.
+**Restaurant POS and ordering infrastructure — self-hosted, multi-tenant, real-time.**
 
-## Quick Start
+A point-of-sale system with a customer-facing menu, table management, reservations, and Stripe payments. Staff use the Angular admin; customers order via QR codes and pay at the table. You keep full control of your data and deployment.
+
+---
+
+## About the Project
+
+POS2 is built for restaurants and venues that want:
+
+- **One place for everything** — Orders, tables, reservations, menu, and payments in a single stack.
+- **Customer ordering without apps** — Guests scan a table QR code, browse the menu, place orders, and pay with Stripe. Optional table PIN keeps ordering secure.
+- **Real-time updates** — Order status (pending → preparing → ready → delivered → paid) flows to staff and customers over WebSockets.
+- **Multi-tenant from day one** — Each restaurant (tenant) has isolated data, settings, and Stripe configuration.
+- **Self-hosted** — Run on your own server or local network; no vendor lock-in.
+
+The frontend is Angular; the backend is FastAPI with PostgreSQL and Redis. All major flows are implemented and documented (see [ROADMAP.md](ROADMAP.md) and the `docs/` folder).
+
+---
+
+## Features
+
+| Area | What's included |
+|------|------------------|
+| **Orders** | Full lifecycle (pending → preparing → ready → delivered → paid). Session-based orders per browser. Item-level status; partial delivery; order modification and cancellation before delivery; soft delete with “Show removed items” in staff UI. |
+| **Customer menu** | Browse menu, cart, place order, order history. Optional “immediate payment required” (checkout auto-opens after placing order). |
+| **Payments** | Stripe integration; per-tenant Stripe keys and currency. |
+| **Tables** | Table management, QR codes, canvas view. Table activation and 4-digit PIN so only present guests can order; PIN rate limiting via Redis. |
+| **Reservations** | Staff: list, create, edit, seat, finish, cancel at `/reservations`. Public: book at `/book/:tenantId`, view/cancel at `/reservation?token=...`. Table status: available / reserved / occupied. |
+| **Real-time** | WebSocket updates for order status; token-based WS auth (`/ws-token`). |
+| **i18n & currency** | Multiple UI languages (e.g. en, es, ca, de, zh-CN, hi); backend localized messages; per-tenant currency (EUR, USD, MXN, etc.). |
+| **Multi-tenant** | Isolated data per tenant; first user becomes owner; configurable roles and permissions (e.g. reservation read/write). |
+
+Planned but not yet implemented: customer accounts (registration, MFA, invoices), batch order operations, and stricter “must pay before continuing” flow. See [ROADMAP.md](ROADMAP.md) and [docs/CUSTOMER_FEATURES_PLAN.md](docs/CUSTOMER_FEATURES_PLAN.md).
+
+---
+
+## Built With
+
+- **Frontend:** Angular 21+ (SPA)
+- **Backend:** FastAPI, SQLModel ORM
+- **Database:** PostgreSQL 18
+- **Cache / pub-sub:** Redis 7
+- **Real-time:** WebSocket bridge (custom service)
+- **Payments:** Stripe
+- **Deployment:** Docker Compose, HAProxy
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- Docker and Docker Compose
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
 - Git
 
-### Setup
+### Quick Start
 
-1. **Clone and setup environment:**
+1. **Clone the repository**
    ```bash
-   # Copy environment config
+   git clone <your-repo-url>
+   cd pos2
+   ```
+
+2. **Configure environment**
+   ```bash
    cp config.env.example config.env
    ```
+   For local development the defaults are fine. For production or a custom domain, set `API_URL`, `WS_URL`, `CORS_ORIGINS`, and `SECRET_KEY`. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-2. **Edit configuration (optional):**
-   ```bash
-   # Edit config.env to set your domain/IP if needed
-   # For localhost development, defaults are fine
-   ```
-
-3. **Start all services with Docker Compose:**
+3. **Start all services**
    ```bash
    docker compose --env-file config.env up -d
    ```
 
-    This will start:
-    - PostgreSQL 18 (Alpine 3.23) on port 5433
-    - Redis 7 on port 6379
-    - FastAPI backend on port 8020
-    - Angular frontend on port 4200
-    - WebSocket bridge on port 8021
-    - HAProxy load balancer on port 4202
+4. **Find the app URL**  
+   Run `docker compose ps` and check the **PORTS** column for the `haproxy` service (e.g. `0.0.0.0:4202->4202/tcp` or `0.0.0.0:4203->4202/tcp`). The **host port** (4202 or 4203) is your app URL.
 
- ### Access Points
+   - **App (recommended):** http://localhost:4202 (or the port shown for haproxy)
+   - **API docs:** http://localhost:4202/api/docs  
+   - **Health:** http://localhost:4202/api/health
 
- - **Unified Frontend & API**: http://localhost:4202 (recommended)
- - **Direct Frontend**: http://localhost:4200
- - **Direct API**: http://localhost:8020
- - **Direct WebSocket Bridge**: ws://localhost:8021
- - **Health Check**: http://localhost:4202/api/health
- - **DB Health Check**: http://localhost:4202/api/health/db
- - **API Docs**: http://localhost:4202/api/docs
+5. **Create an account**  
+   There is no pre-seeded user. Open **http://localhost:4202/register** (use your actual port), enter tenant name, email, and password. The first user becomes the tenant owner. Then sign in at the main URL.
 
- ### First-time login
+---
 
- There is no pre-seeded user. Create an account at **http://localhost:4202/register** (or your HAProxy port, e.g. 4203). Enter tenant name, email, password, and optionally full name. The first user of each tenant becomes the owner. Then log in at the main URL with that email and password.
+## Access Points
 
- ### Internationalization (i18n)
+| Purpose | URL |
+|--------|-----|
+| **Unified app (frontend + API via HAProxy)** | http://localhost:4202 |
+| **API docs (Swagger)** | http://localhost:4202/api/docs |
+| **Health check** | http://localhost:4202/api/health |
+| **DB health** | http://localhost:4202/api/health/db |
+| **Public menu (example)** | http://localhost:4202/menu/{table_token} |
+| **Public booking** | http://localhost:4202/book/{tenantId} |
 
- The system supports multiple languages and currencies:
+If your frontend port is different (e.g. 4203), replace 4202 with that port. See [AGENTS.md](AGENTS.md) for how to detect the port and debug with logs.
 
- - **Supported Languages**: English, Spanish, Catalan, German, Chinese (Simplified), Hindi
- - **Currency Support**: EUR, USD, MXN, INR, CNY, TWD (ISO 4217 codes)
- - **Language Picker**: Available in admin sidebar and public menu
- - **Translation Management**: Admin → Settings → Translations
- - **API Language Parameter**: Add `?lang=es` to API requests for localized content
+---
 
-### Viewing Logs
+## Configuration
 
-```bash
-# View all logs
-docker compose logs -f
+Key variables in `config.env` (see `config.env.example` for the full list):
 
-# View specific service logs
-docker compose logs -f back
-docker compose logs -f front
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SECRET_KEY` | JWT signing; change in production | Yes |
+| `REFRESH_SECRET_KEY` | Refresh token signing; must differ from `SECRET_KEY` | Yes |
+| `API_URL` | Backend base URL used by frontend (e.g. `http://localhost:4202/api`) | For custom domain |
+| `WS_URL` | WebSocket URL (e.g. `ws://localhost:4202/ws`) | For custom domain |
+| `CORS_ORIGINS` | Allowed frontend origins (comma-separated) | Yes (production) |
+| `POSTGRES_*` / `DB_*` | Database connection | Yes |
+| `STRIPE_CURRENCY` | Fallback currency if tenant has none | Optional |
+
+Stripe keys are configured per tenant in **Settings** in the admin UI. For deployment on a domain or IP, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ROADMAP.md](ROADMAP.md) | Implemented vs planned features; rate limiting and security roadmap |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes and unreleased changes |
+| [AGENTS.md](AGENTS.md) | How to find the app port and view logs (for developers/agents) |
+| [docs/ORDER_MANAGEMENT_LOGIC.md](docs/ORDER_MANAGEMENT_LOGIC.md) | Order lifecycle, session rules, status reset |
+| [docs/IMPLEMENTATION_VERIFICATION.md](docs/IMPLEMENTATION_VERIFICATION.md) | What’s implemented vs Phase 4 (batch, audit, etc.) |
+| [docs/TABLE_RESERVATION_IMPLEMENTATION_PLAN.md](docs/TABLE_RESERVATION_IMPLEMENTATION_PLAN.md) | Reservations design and backend |
+| [docs/TABLE_RESERVATION_USER_GUIDE.md](docs/TABLE_RESERVATION_USER_GUIDE.md) | URLs and flows for staff and public booking |
+| [docs/TABLE_PIN_SECURITY.md](docs/TABLE_PIN_SECURITY.md) | Table activation and PIN validation |
+| [docs/TRANSLATION_IMPLEMENTATION.md](docs/TRANSLATION_IMPLEMENTATION.md) | i18n (frontend + backend + DB content) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Domain/IP deployment and env vars |
+| [docs/CUSTOMER_FEATURES_PLAN.md](docs/CUSTOMER_FEATURES_PLAN.md) | Planned customer accounts, MFA, invoices |
+| [docs/EMAIL_SENDING_OPTIONS.md](docs/EMAIL_SENDING_OPTIONS.md) | Email configuration options |
+| [docs/GMAIL_SETUP_INSTRUCTIONS.md](docs/GMAIL_SETUP_INSTRUCTIONS.md) | Gmail SMTP setup |
+| [docs/VERIFICATION_ALTERNATIVES.md](docs/VERIFICATION_ALTERNATIVES.md) | Verification flow alternatives |
+
+---
+
+## Architecture
+
+```
+Browser → Frontend (Angular) → Backend (FastAPI) → PostgreSQL
+                                    ↓
+                               Redis (pub/sub)
+                                    ↓
+                          WebSocket bridge → Browser (real-time)
 ```
 
-### Stopping Services
+**Services (Docker Compose):**
+
+- **haproxy** — Single entry point; routes `/` to frontend, `/api` to backend, `/ws` to WebSocket bridge. Port from `FRONTEND_PORT` (default 4202).
+- **front** — Angular SPA (dev server in container).
+- **back** — FastAPI app (Uvicorn).
+- **ws-bridge** — WebSocket server; subscribes to Redis and pushes order updates.
+- **db** — PostgreSQL 18.
+- **redis** — Cache and pub/sub.
+
+---
+
+## Development
+
+### Logs and port
+
+- **Port:** `docker compose ps` → PORTS for `haproxy` → use that host port in the browser.
+- **Logs:** `docker compose logs -f` (all); `docker compose logs --tail=50 back`; `docker compose logs --tail=80 front`; `docker compose logs --tail=30 haproxy`.
+
+See [AGENTS.md](AGENTS.md) for more detail.
+
+### Database migrations
+
+Migrations live in `back/migrations/` and run automatically on backend startup.
+
+- **Apply manually:** `docker compose exec back python -m app.migrate`
+- **Check pending:** `docker compose exec back python -m app.migrate --check`
+- **New migration:** Use timestamped names, e.g. `back/migrations/YYYYMMDDHHMMSS_description.sql`. See `back/migrations/README.md`.
+
+Do not edit existing migration files; add a new migration to change schema.
+
+### Hot reload
+
+- Frontend and backend both reload on code changes when run via Docker Compose.
+
+### Stopping
 
 ```bash
 docker compose --env-file config.env down
 ```
 
-## Configuration
+---
 
-### Environment Variables
+## Internationalization (i18n)
 
-The system is configured via `config.env`. Key variables:
+- **Languages:** English, Spanish, Catalan, German, Chinese (Simplified), Hindi (see `front/public/i18n/*.json`).
+- **Currency:** Per-tenant (e.g. EUR, USD, MXN, INR, CNY, TWD).
+- **Language picker:** In admin sidebar and on the public menu.
+- **API:** Use `?lang=es` (or other code) for localized API messages.
 
-- **Database**: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
-- **Frontend URLs**: `API_URL`, `WS_URL` (for domain/IP deployment)
-- **CORS**: `CORS_ORIGINS` (comma-separated list of allowed origins)
-- **Security**: `SECRET_KEY` (required for production)
-- **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_CURRENCY`
+See [docs/TRANSLATION_IMPLEMENTATION.md](docs/TRANSLATION_IMPLEMENTATION.md).
 
-See `config.env.example` for all available configuration options.
+---
 
-### Domain/IP Deployment
+## Table Reservations
 
-To deploy on a specific domain or IP address:
+- **Staff:** Sign in → **Reservations** in the sidebar. List, create, edit, seat at a table, finish, or cancel. Tables canvas shows status **Reserved** (amber) when a reservation is assigned.
+- **Public:** Book at **`/book/:tenantId`** (e.g. `http://localhost:4202/book/1`). After booking, use the link to **view or cancel** at `/reservation?token=...`. No login required.
 
-1. Edit `config.env`:
-   ```bash
-   # For domain
-   API_URL=https://api.yourdomain.com
-   WS_URL=wss://api.yourdomain.com
-   CORS_ORIGINS=https://app.yourdomain.com,*
+Details: [docs/TABLE_RESERVATION_USER_GUIDE.md](docs/TABLE_RESERVATION_USER_GUIDE.md).
 
-   # For IP address
-   API_URL=http://192.168.1.100:8020
-   WS_URL=ws://192.168.1.100:8021
-   CORS_ORIGINS=http://192.168.1.100:4200,*
-   ```
+---
 
-2. Restart services:
-   ```bash
-   docker compose --env-file config.env down
-   docker compose --env-file config.env up -d
-   ```
+## Deployment
 
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+For a custom domain or IP, set in `config.env`:
 
-## Architecture
+- `API_URL` and `WS_URL` to your backend base URL (use `https://` and `wss://` for production).
+- `CORS_ORIGINS` to your frontend origin(s).
 
-- **Frontend**: Angular 21+ (SPA) - Containerized
-- **Backend**: FastAPI with SQLModel ORM - Containerized
-- **Database**: PostgreSQL 18 (Alpine 3.23) - Containerized
-- **Cache/Pub-Sub**: Redis 7 - Containerized
-- **Real-time**: WebSocket bridge microservice - Containerized
-- **Payments**: Stripe integration
+Then restart: `docker compose --env-file config.env up -d`.
 
-### Service Communication
+Full guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-```
-Browser → Frontend (Angular) → Backend (FastAPI) → PostgreSQL
-                              ↓
-                         Redis Pub/Sub
-                              ↓
-                    WebSocket Bridge → Browser (real-time updates)
-```
+---
 
-## Development
+## Roadmap
 
-### Database Migrations
+- **Done:** Order management, reservations, table PIN, Stripe, WebSocket, i18n, deployment docs. See [ROADMAP.md](ROADMAP.md) for the full list.
+- **Planned:** Customer accounts (register, MFA, invoices), order Phase 4 (batch, audit, item replacement), optional stricter “immediate payment” enforcement. Rate limiting and security hardening are described in [ROADMAP.md](ROADMAP.md).
 
-The project uses a versioned migration system to manage database schema changes. Migrations are automatically applied on application startup.
-
-**Migration files** are located in `back/migrations/` and follow the naming pattern:
-```
-{version}_{description}.sql
-```
-
-Example: `001_add_tenant_fields.sql`, `002_add_user_preferences.sql`
-
-**Running migrations manually:**
-```bash
-# Check for pending migrations (dry run)
-docker compose exec back python -m app.migrate --check
-
-# Apply pending migrations
-docker compose exec back python -m app.migrate
-```
-
-**Creating a new migration:**
-
-**Recommended: Use timestamp-based naming** (prevents conflicts in concurrent development):
-```bash
-# Use the helper script
-./back/create_migration.sh add_user_preferences
-# Creates: migrations/20260111143000_add_user_preferences.sql
-```
-
-**Alternative: Sequential numbering** (backward compatible):
-1. Create a new SQL file: `back/migrations/XXX_description.sql` (where XXX is the next version number)
-2. Write your SQL statements (CREATE TABLE, ALTER TABLE, etc.)
-3. Test locally before committing
-
-⚠️ **Note**: Sequential numbers can conflict if two developers work simultaneously. Timestamps eliminate this issue.
-
-**Important:**
-- Migrations are applied automatically on startup
-- Never modify existing migration files - create a new migration to fix issues
-- The system tracks applied migrations in the `schema_version` table
-- Use `IF NOT EXISTS` clauses where possible for idempotency
-
-See `back/migrations/README.md` for more details.
-
-### Seeding Translations (Optional)
-
-The system supports translations for menu items and business information. To populate some basic global translations for catalog items:
-
-```bash
-# Run the seeding script (requires catalog data to exist first)
-docker compose exec back python seed_translations.py
-```
-
-Translations can also be managed through the admin interface at `/translations`.
-
-### Hot Reload
-
-All services support hot reload when running in Docker:
-- Frontend: File changes trigger automatic rebuild
-- Backend: Uvicorn reloads on Python file changes
-
-### Manual Development (Alternative)
-
-If you prefer to run components outside Docker:
-
-```bash
-# 1. Start database and Redis
-docker compose --env-file config.env up -d db redis
-
-# 2. Start backend
-cd back
-source venv/bin/activate  # or use your virtual environment
-export $(grep -v '^#' ../config.env | xargs)
-uvicorn app.main:app --host 0.0.0.0 --port 8020 --reload
-
-# 3. Start frontend (in another terminal)
-cd front
-npm install
-npm start  # Runs on http://localhost:4200
-```
-
-## Features
-
-- **Multi-tenant**: Each restaurant/tenant has isolated data
-- **Public Menu**: Customers access menus via QR codes (table tokens)
-- **Order Management**: Real-time order status updates via WebSocket
-- **Payment Processing**: Stripe integration for customer checkout
-- **Product Management**: CRUD operations with image uploads
-- **Table Management**: Generate QR codes for tables
+---
 
 ## Security Notes
 
-- **SECRET_KEY**: Must be changed in production (used for JWT tokens)
-- **CORS**: Configure `CORS_ORIGINS` to restrict frontend access
-- **Database**: Use strong passwords in production
-- **Stripe**: Use production keys in production environment
+- **Production:** Set a strong `SECRET_KEY` and `REFRESH_SECRET_KEY` in `config.env`.
+- **CORS:** Set `CORS_ORIGINS` to your real frontend origin(s); avoid `*` in production if possible.
+- **Database:** Use strong credentials; do not commit `config.env`.
+- **Stripe:** Use live keys in production and configure them per tenant in Settings.
+- **Rate limiting:** Not yet implemented for most endpoints; PIN attempts are rate-limited. See [ROADMAP.md](ROADMAP.md) for the planned strategy.
+
+---
 
 ## Troubleshooting
 
-**Services won't start:**
-- Check if ports are already in use
-- Verify `config.env` exists and is properly formatted
-- Check Docker logs: `docker compose logs`
+| Issue | What to try |
+|------|-------------|
+| **Services won’t start** | Check port conflicts; ensure `config.env` exists and is valid; run `docker compose logs`. |
+| **Frontend can’t reach API** | Confirm `API_URL` and `WS_URL` match how the browser reaches the app (e.g. through HAProxy). Check CORS and browser console. |
+| **Wrong port** | Run `docker compose ps`, find the host port for `haproxy`, and open that URL (e.g. `http://localhost:4202`). |
+| **DB connection errors** | Ensure `db` is healthy (`docker compose ps`); with Compose, use `DB_HOST=db`. Check credentials in `config.env`. |
 
-**Frontend can't connect to backend:**
-- Verify `API_URL` in `config.env` matches backend location
-- Check CORS settings allow your frontend origin
-- Check browser console for errors
-
-**Database connection errors:**
-- Ensure database container is healthy: `docker compose ps`
-- Verify `DB_HOST=db` (service name) when using Docker Compose
-- Check database credentials in `config.env`
-
-For more troubleshooting, see [DEPLOYMENT.md](DEPLOYMENT.md).
+More: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [AGENTS.md](AGENTS.md).

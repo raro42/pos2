@@ -123,20 +123,29 @@
   </nav>
 
   <main class="menu-content">
-    <!-- Order status bar (always visible when user has an order) -->
-    @if (placedOrders().length > 0) {
-    <section class="order-status-bar" aria-label="Order status">
-      @for (order of placedOrders(); track order.id) {
-      <div class="order-status-bar-inner">
-        <span class="order-status-bar-dot" [class]="'status-' + order.status" aria-hidden="true"></span>
-        <span class="order-status-bar-label">{{ 'ORDERS.YOUR_ORDER_STATUS' | translate }}:</span>
-        <span class="order-status-bar-value">{{ ('ORDER_STATUS.' + order.status) | translate }}</span>
+    <!-- Current order & status (always show this section so client sees ordered/processed state) -->
+    <section class="customer-orders-section" aria-label="Your orders">
+      <h2 class="customer-orders-heading">{{ 'MENU.CURRENT_ORDER' | translate }}</h2>
+
+      @if (placedOrders().length === 0) {
+      <div class="no-order-card">
+        <p class="no-order-title">{{ 'MENU.NO_ACTIVE_ORDER' | translate }}</p>
+        <p class="no-order-hint">{{ 'MENU.NO_ACTIVE_ORDER_HINT' | translate }}</p>
       </div>
-      }
-    </section>
+      } @else {
+      <!-- Order status bar -->
+      <section class="order-status-bar" aria-label="Order status">
+        @for (order of placedOrders(); track order.id) {
+        <div class="order-status-bar-inner">
+          <span class="order-status-bar-dot" [class]="'status-' + order.status" aria-hidden="true"></span>
+          <span class="order-status-bar-label">{{ 'ORDERS.YOUR_ORDER_STATUS' | translate }}:</span>
+          <span class="order-status-bar-value">{{ ('ORDER_STATUS.' + order.status) | translate }}</span>
+        </div>
+        }
+      </section>
     }
 
-    <!-- Active Orders Tracker -->
+    <!-- Active order tracker card -->
     @if (placedOrders().length > 0) {
     <section class="orders-section">
       @for (order of placedOrders(); track order.id) {
@@ -215,6 +224,43 @@
       }
     </section>
     }
+
+    <!-- Order history (past paid/completed orders) -->
+    <section class="order-history-section" aria-label="Order history">
+      <h2 class="customer-orders-heading">{{ 'MENU.ORDER_HISTORY_TITLE' | translate }}</h2>
+      @if (orderHistory().length === 0) {
+      <p class="no-history-text">{{ 'MENU.NO_ORDER_HISTORY' | translate }}</p>
+      } @else {
+      <div class="history-list">
+        @for (past of orderHistory(); track past.id) {
+        <div class="history-card">
+          <button type="button" class="history-card-header" (click)="toggleHistoryOrder(past.id)">
+            <span class="history-order-id">{{ 'ORDERS.ORDER_ID' | translate }} {{ past.id }}</span>
+            <span class="history-meta">{{ formatHistoryDate(past.paid_at || past.created_at) }} · {{ ('ORDER_STATUS.' + past.status) | translate }}</span>
+            <span class="history-total">{{ formatPrice(past.total_cents) }}</span>
+            <svg class="history-chevron" [class.expanded]="expandedHistoryId() === past.id" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6,9 12,15 18,9" />
+            </svg>
+          </button>
+          @if (expandedHistoryId() === past.id) {
+          <div class="history-card-body">
+            <ul class="history-items">
+              @for (item of past.items; track item.id) {
+              <li class="history-item-row">
+                <span class="history-item-qty">{{ item.quantity }}×</span>
+                <span class="history-item-name">{{ item.product_name }}</span>
+                <span class="history-item-price">{{ formatPrice(item.price_cents * item.quantity) }}</span>
+              </li>
+              }
+            </ul>
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+    </section>
+  </section>
 
     <!-- Featured Items Section -->
     @if (featuredProducts().length > 0 && selectedCategory() === null) {
