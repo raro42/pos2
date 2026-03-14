@@ -4,6 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ApiService, TenantSummary } from '../services/api.service';
 import { FormsModule } from '@angular/forms';
 import { LanguagePickerComponent } from '../shared/language-picker.component';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-landing',
@@ -64,17 +65,39 @@ import { LanguagePickerComponent } from '../shared/language-picker.component';
         <span>{{ 'AUTH.DONT_HAVE_ACCOUNT' | translate }}</span>
         <a routerLink="/register">{{ 'AUTH.CREATE_ACCOUNT' | translate }}</a>
       </div>
+      <div class="landing-version-bar" data-testid="landing-version">{{ version }} <span class="landing-commit">{{ commitHash }}</span></div>
     </div>
   `,
   styles: [`
     .landing-page {
       min-height: 100vh;
-      padding: var(--space-8) var(--space-5);
+      padding: var(--space-8) var(--space-5) calc(var(--space-6) + 28px);
       background: var(--color-bg);
       display: flex;
       flex-direction: column;
       align-items: center;
       position: relative;
+    }
+
+    .landing-version-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: var(--space-2) var(--space-4);
+      font-size: 0.6875rem;
+      color: var(--color-text-muted);
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+      opacity: 0.9;
+      z-index: 5;
+    }
+
+    .landing-version-bar .landing-commit {
+      margin-left: 4px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 0.625rem;
     }
 
     .landing-language-picker {
@@ -253,6 +276,9 @@ import { LanguagePickerComponent } from '../shared/language-picker.component';
 export class LandingComponent implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
+
+  version = environment.version;
+  commitHash = environment.commitHash;
 
   tenants = signal<TenantSummary[]>([]);
   loading = signal(true);
