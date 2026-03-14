@@ -19,14 +19,18 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           KEY="${{ secrets.SSH_PRIVATE_KEY }}"
-          # If secret looks like base64 (no PEM markers), decode it; otherwise use as raw key
-          if echo "$KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
-            echo "$KEY" > ~/.ssh/deploy_key
+          echo "Key length: ${#KEY} chars, looks like PEM: $(echo \"$KEY\" | grep -q 'BEGIN' && echo \"$KEY\" | grep -q 'PRIVATE KEY' && echo yes || echo no)"
+          # If secret contains PEM markers, use as raw key (strip CR for Windows paste); else decode as base64
+          if echo "$KEY" | grep -q "BEGIN" && echo "$KEY" | grep -q "PRIVATE KEY"; then
+            echo "$KEY" | tr -d '\r' > ~/.ssh/deploy_key
           else
-            echo "$KEY" | tr -d '\n\r' | base64 -d > ~/.ssh/deploy_key
+            echo "$KEY" | tr -d '\n\r\t ' | base64 -d > ~/.ssh/deploy_key
           fi
           chmod 600 ~/.ssh/deploy_key
-          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null || (echo "Invalid SSH key in SSH_PRIVATE_KEY secret. Use the raw private key (with -----BEGIN/END----- lines) or its base64 encoding (base64 -w 0 keyfile)."; exit 1)
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            echo "::error::Invalid SSH_PRIVATE_KEY: ssh-keygen could not read the key. Paste the full raw key (-----BEGIN...END-----) or a single-line base64 string (base64 -w 0 keyfile)."
+            exit 1
+          fi
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST || '167.235.138.59' }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy on amvara9
