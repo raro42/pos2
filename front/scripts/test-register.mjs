@@ -97,6 +97,8 @@ async function main() {
     if (hasSuccess) {
       console.log('>>> RESULT: Registration successful (success banner shown).');
       if (currentUrl.includes('/login')) console.log('   Redirected to login.');
+    } else if (currentUrl.includes('/login') && !hasError) {
+      console.log('>>> RESULT: Registration successful (redirected to login).');
     } else if (hasError) {
       console.log('>>> RESULT: Registration failed.');
       console.log('   Error:', errorText || '(no message)');
