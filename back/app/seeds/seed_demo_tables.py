@@ -83,8 +83,8 @@ def run() -> None:
                 token = str(uuid4())
                 session.execute(
                     text(
-                        '''INSERT INTO "table" (tenant_id, name, token, floor_id, seat_count)
-                           VALUES (:tid, :name, :token, :floor_id, :seat_count)'''
+                        '''INSERT INTO "table" (tenant_id, name, token, floor_id, seat_count, x_position, y_position)
+                           VALUES (:tid, :name, :token, :floor_id, :seat_count, 0, 0)'''
                     ),
                     {
                         "tid": DEMO_TENANT_ID,
