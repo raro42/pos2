@@ -67,7 +67,7 @@ Production (satisfecho.de) requires the front container’s nginx to strip the `
 
 ## Demo tables (seed and test)
 
-The demo restaurant (tenant id 1) should have **T01–T09**: T01–T05 with 4 seats, T06–T09 with 2 seats, on a single floor "Main". If the database was reinitialized or tables were lost, seed them and then run the check.
+The demo restaurant (tenant id 1) should have **T01–T10**: T01–T05 with 4 seats, T06–T10 with 2 seats, on a single floor "Main". **Deploy** runs the seed automatically (`scripts/deploy-amvara9.sh`). If the database was reinitialized or tables were lost outside deploy, seed manually and run the check.
 
 **Seed tables (idempotent; creates only missing tables):**
 
@@ -85,4 +85,8 @@ cd back && python -m app.seeds.seed_demo_tables
 docker compose exec back python -m app.seeds.check_demo_tables
 ```
 
-Exit 0 means tenant 1 has T01–T09 with the correct seat counts; exit 1 reports missing or wrong tables.
+Exit 0 means tenant 1 has T01–T10 with the correct seat counts; exit 1 reports missing or wrong tables.
+
+**Demo products (tenant 1):** Deploy also runs `app.seeds.seed_demo_products`, which seeds a default menu (main courses, beverages) for tenant 1. Idempotent; no images. To run manually: `docker compose exec back python -m app.seeds.seed_demo_products`.
+
+**Puppeteer test (demo data):** Verifies tenant 1 has ≥10 tables and ≥10 products and /book/1 loads. Run with tenant 1 credentials: `BASE_URL=http://satisfecho.de LOGIN_EMAIL=... LOGIN_PASSWORD=... node front/scripts/test-demo-data.mjs` (or `npm run test:demo-data` from front/). Set `HEADLESS=1` for headless.

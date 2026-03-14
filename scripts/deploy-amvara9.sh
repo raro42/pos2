@@ -32,4 +32,10 @@ sleep 15
 echo "Running migrations..."
 docker compose --env-file config.env exec -T back python -m app.migrate || true
 
+echo "Seeding demo tables for tenant 1 (T01–T10)..."
+docker compose --env-file config.env exec -T back python -m app.seeds.seed_demo_tables || true
+
+echo "Seeding demo products for tenant 1..."
+docker compose --env-file config.env exec -T back python -m app.seeds.seed_demo_products || true
+
 echo "Deploy done."

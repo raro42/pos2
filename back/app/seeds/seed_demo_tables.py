@@ -1,5 +1,5 @@
 """
-Seed demo restaurant with one floor and tables T01–T09 (4 and 2 seats).
+Seed demo restaurant with one floor and tables T01–T10 (T01–T05: 4 seats, T06–T10: 2 seats).
 
 Use for tenant_id=1 (demo restaurant). Idempotent: creates missing tables only;
 does not delete or change existing tables. Uses raw SQL for floor so it works
@@ -23,7 +23,7 @@ from app.models import Tenant
 
 DEMO_TENANT_ID = 1
 FLOOR_NAME = "Main"
-# T01–T05: 4 seats; T06–T09: 2 seats
+# T01–T05: 4 seats; T06–T10: 2 seats (10 demo tables for tenant 1)
 TABLE_SPECS = [
     ("T01", 4),
     ("T02", 4),
@@ -34,6 +34,7 @@ TABLE_SPECS = [
     ("T07", 2),
     ("T08", 2),
     ("T09", 2),
+    ("T10", 2),
 ]
 
 
@@ -110,7 +111,7 @@ def run() -> None:
             if updated:
                 print(f"Updated {updated} table(s) to expected seat counts.")
         else:
-            print("All demo tables (T01–T09) already exist with correct seat counts.")
+            print("All demo tables (T01–T10) already exist with correct seat counts.")
 
     print("Done.")
 
