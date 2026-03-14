@@ -39,6 +39,16 @@ export interface RegisterResponse {
   email: string;
 }
 
+/** Public tenant info for landing page / tenant picker / book page. */
+export interface TenantSummary {
+  id: number;
+  name: string;
+  logo_filename: string | null;
+  description?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
 export interface Product {
   id?: number;
   name: string;
@@ -395,8 +405,12 @@ export class ApiService {
     return this.http.post<RegisterResponse>(`${this.apiUrl}/register`, null, { params });
   }
 
-  login(credentials: FormData): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/token`, credentials).pipe(
+  login(credentials: FormData, tenantId?: number): Observable<any> {
+    let params = new HttpParams();
+    if (tenantId != null) {
+      params = params.set('tenant_id', tenantId.toString());
+    }
+    return this.http.post<any>(`${this.apiUrl}/token`, credentials, { params }).pipe(
       tap(() => {
         this.checkAuth().subscribe();
       })
@@ -750,6 +764,16 @@ export class ApiService {
   getTenantLogoUrl(logoFilename: string | null | undefined, tenantId: number | null | undefined): string | null {
     if (!logoFilename || !tenantId) return null;
     return `${this.apiUrl}/uploads/${tenantId}/logo/${logoFilename}`;
+  }
+
+  /** List all tenants (public, no auth). For landing page tenant picker. */
+  getPublicTenants(): Observable<TenantSummary[]> {
+    return this.http.get<TenantSummary[]>(`${this.apiUrl}/public/tenants`);
+  }
+
+  /** Get one tenant's public info (for book/menu branding). Public, no auth. */
+  getPublicTenant(tenantId: number): Observable<TenantSummary> {
+    return this.http.get<TenantSummary>(`${this.apiUrl}/public/tenants/${tenantId}`);
   }
 
   /** Get token for WebSocket auth (cookie may not be sent on WS upgrade from some origins). */

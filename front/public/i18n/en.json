@@ -53,6 +53,17 @@
     "USERS": "Users",
     "LOGOUT": "Logout"
   },
+  "LANDING": {
+    "TITLE": "POS",
+    "SUBTITLE": "Select your restaurant to sign in",
+    "LOGIN": "Login",
+    "NO_TENANTS": "No restaurants registered yet.",
+    "AT_TABLE_LABEL": "Order at your table",
+    "AT_TABLE_HINT": "Already at a table? Enter the code on your table to order.",
+    "TABLE_CODE_PLACEHOLDER": "Table code",
+    "GO": "Go",
+    "BOOK_TABLE": "Book a table"
+  },
   "DASHBOARD": {
     "TITLE": "Dashboard",
     "WELCOME_BACK": "Welcome Back",
@@ -375,6 +386,7 @@
   },
   "RESERVATIONS": {
     "TITLE": "Reservations",
+    "RESERVATION_NUMBER": "Reservation number",
     "NEW": "New reservation",
     "LOADING": "Loading...",
     "NONE": "No reservations",

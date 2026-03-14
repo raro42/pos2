@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 /**
- * Puppeteer test: verify demo data is in place for tenant 1 (tables T01–T10, products).
+ * Puppeteer test: verify demo data is in place (tables T01–T10, products).
  * Logs in then fetches /api/products and /api/tables/with-status; asserts counts.
- * Optional: open /book/1 to verify public book page (no login).
+ * Optional: open /book/1 (or BOOK_TENANT_ID) to verify public book page (no login).
  *
  * Usage (from repo root):
- *   BASE_URL=http://satisfecho.de LOGIN_EMAIL=user@example.com LOGIN_PASSWORD=secret node front/scripts/test-demo-data.mjs
+ *   BASE_URL=http://satisfecho.de LOGIN_EMAIL=ralf@roeber.de LOGIN_PASSWORD=secret node front/scripts/test-demo-data.mjs
  *
  * Env:
- *   BASE_URL       App URL (default: auto-detect 4203, 4202, 4200, or http://satisfecho.de)
- *   LOGIN_EMAIL    Tenant 1 user email (required for products/tables check)
+ *   BASE_URL       App URL (default: auto-detect or http://satisfecho.de)
+ *   LOGIN_EMAIL    User email (required for products/tables check)
  *   LOGIN_PASSWORD Password
- *   HEADLESS      Set to 1 to run headless (default: 0 = visible browser)
+ *   BOOK_TENANT_ID Tenant id for public book page check (default: 1)
+ *   HEADLESS       Set to 1 to run headless (default: 0 = visible browser)
  */
 
 import { createRequire } from 'module';
@@ -46,11 +47,12 @@ async function main() {
   const headless = process.env.HEADLESS === '1' || process.env.HEADLESS === 'true';
   const loginEmail = process.env.LOGIN_EMAIL;
   const loginPassword = process.env.LOGIN_PASSWORD;
+  const bookTenantId = process.env.BOOK_TENANT_ID || '1';
 
   console.log('BASE_URL:', baseUrl);
   console.log('Headless:', headless);
   if (!loginEmail || !loginPassword) {
-    console.log('LOGIN_EMAIL/LOGIN_PASSWORD not set – will only check public /book/1.');
+    console.log('LOGIN_EMAIL/LOGIN_PASSWORD not set – will only check public /book/' + bookTenantId + '.');
   }
   console.log('---');
 
@@ -70,13 +72,13 @@ async function main() {
   let bookPageOk = false;
 
   try {
-    // 1. Public book page (no auth): tenant 1 book form should load
-    console.log('1. Checking public /book/1...');
-    await page.goto(new URL('/book/1', baseUrl).href, { waitUntil: 'networkidle2', timeout: 15000 });
+    // 1. Public book page (no auth): book form should load for tenant
+    console.log('1. Checking public /book/' + bookTenantId + '...');
+    await page.goto(new URL('/book/' + bookTenantId, baseUrl).href, { waitUntil: 'networkidle2', timeout: 15000 });
     bookPageOk = await page.evaluate(() => !!document.querySelector('.book-form'));
     console.log('   Book form present:', bookPageOk);
     if (!bookPageOk) {
-      console.log('   FAIL: /book/1 should show booking form.');
+      console.log('   FAIL: /book/' + bookTenantId + ' should show booking form.');
     }
 
     if (!loginEmail || !loginPassword) {
@@ -135,7 +137,7 @@ async function main() {
     const tablesOk = tablesCount >= MIN_TABLES;
     const productsOk = productsCount >= MIN_PRODUCTS;
     console.log('\n---');
-    console.log('Book page (tenant 1):', bookPageOk ? 'OK' : 'FAIL');
+    console.log('Book page (/book/' + bookTenantId + '):', bookPageOk ? 'OK' : 'FAIL');
     console.log('Tables (≥' + MIN_TABLES + '):', tablesOk ? `OK (${tablesCount})` : `FAIL (${tablesCount})`);
     console.log('Products (≥' + MIN_PRODUCTS + '):', productsOk ? `OK (${productsCount})` : `FAIL (${productsCount})`);
     if (bookPageOk && tablesOk && productsOk) {

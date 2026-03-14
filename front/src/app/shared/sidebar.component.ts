@@ -26,7 +26,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
         <div class="sidebar-header">
           <div class="logo-container">
             <span class="logo">POS</span>
-            <span class="version">v{{ version }}<span class="commit-hash">{{ commitHash }}</span></span>
+            <span class="version">{{ version }} <span class="commit-hash">{{ commitHash }}</span></span>
           </div>
           <button class="close-btn" (click)="closeSidebar()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -36,7 +36,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
         </div>
         
         <nav class="nav">
-           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link" (click)="closeSidebar()">
+           <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link" (click)="closeSidebar()">
              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
                <polyline points="9,22 9,12 15,12 15,22"/>
@@ -239,6 +239,6 @@ export class SidebarComponent implements OnInit {
 
   logout() {
     this.api.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/']);
   }
 }

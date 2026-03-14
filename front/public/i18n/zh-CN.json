@@ -50,6 +50,17 @@
     "USERS": "用户",
     "LOGOUT": "退出登录"
   },
+  "LANDING": {
+    "TITLE": "POS",
+    "SUBTITLE": "选择您的餐厅登录",
+    "LOGIN": "登录",
+    "NO_TENANTS": "暂无注册餐厅。",
+    "AT_TABLE_LABEL": "在桌点餐",
+    "AT_TABLE_HINT": "已在桌前？输入桌位码即可点餐。",
+    "TABLE_CODE_PLACEHOLDER": "桌位码",
+    "GO": "进入",
+    "BOOK_TABLE": "预订桌位"
+  },
   "DASHBOARD": {
     "TITLE": "仪表板",
     "WELCOME_BACK": "欢迎回来",
@@ -358,6 +369,7 @@
   },
   "RESERVATIONS": {
     "TITLE": "预订管理",
+    "RESERVATION_NUMBER": "预订编号",
     "NEW": "新建预订",
     "LOADING": "加载中...",
     "NONE": "暂无预订",

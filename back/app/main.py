@@ -389,6 +389,50 @@ def health_db(session: Session = Depends(get_session)) -> dict:
         raise HTTPException(status_code=503, detail=f"Database error: {e}")
 
 
+# ============ PUBLIC TENANTS (no auth) ============
+
+
+class TenantSummary(_BaseModel):
+    """Public tenant info for landing page / tenant picker / book page."""
+
+    id: int
+    name: str
+    logo_filename: str | None = None
+    description: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
+def _tenant_to_summary(t: models.Tenant) -> TenantSummary:
+    return TenantSummary(
+        id=t.id,
+        name=t.name,
+        logo_filename=t.logo_filename,
+        description=t.description,
+        phone=t.phone,
+        email=t.email,
+    )
+
+
+@app.get("/public/tenants", response_model=list[TenantSummary])
+def list_public_tenants(session: Session = Depends(get_session)) -> list:
+    """List all tenants (id, name, logo, description, phone, email). Public, no authentication."""
+    tenants = session.exec(select(models.Tenant).order_by(models.Tenant.name)).all()
+    return [_tenant_to_summary(t) for t in tenants]
+
+
+@app.get("/public/tenants/{tenant_id}", response_model=TenantSummary)
+def get_public_tenant(
+    tenant_id: int,
+    session: Session = Depends(get_session),
+) -> TenantSummary:
+    """Get one tenant's public info for book page. Public, no authentication."""
+    tenant = session.get(models.Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return _tenant_to_summary(tenant)
+
+
 # ============ AUTH ============
 
 
@@ -431,10 +475,13 @@ def register(
 @app.post("/token")
 def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    tenant_id: int | None = Query(None, description="Optional tenant id from tenant picker"),
     lang: str = Depends(_get_requested_language),
     session: Session = Depends(get_session),
 ) -> dict:
     statement = select(models.User).where(models.User.email == form_data.username)
+    if tenant_id is not None:
+        statement = statement.where(models.User.tenant_id == tenant_id)
     user = session.exec(statement).first()
 
     if not user or not security.verify_password(

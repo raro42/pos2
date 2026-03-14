@@ -53,6 +53,17 @@
     "USERS": "Usuarios",
     "LOGOUT": "Cerrar sesión"
   },
+  "LANDING": {
+    "TITLE": "POS",
+    "SUBTITLE": "Selecciona tu restaurante para iniciar sesión",
+    "LOGIN": "Iniciar sesión",
+    "NO_TENANTS": "Aún no hay restaurantes registrados.",
+    "AT_TABLE_LABEL": "Pedir en tu mesa",
+    "AT_TABLE_HINT": "¿Ya estás en una mesa? Introduce el código de tu mesa para pedir.",
+    "TABLE_CODE_PLACEHOLDER": "Código de mesa",
+    "GO": "Ir",
+    "BOOK_TABLE": "Reservar mesa"
+  },
   "DASHBOARD": {
     "TITLE": "Panel",
     "WELCOME_BACK": "Bienvenido de nuevo",
@@ -376,6 +387,7 @@
   },
   "RESERVATIONS": {
     "TITLE": "Reservaciones",
+    "RESERVATION_NUMBER": "Número de reserva",
     "NEW": "Nueva reservación",
     "LOADING": "Cargando...",
     "NONE": "Sin reservaciones",

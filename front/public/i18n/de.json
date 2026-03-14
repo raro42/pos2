@@ -50,6 +50,17 @@
     "USERS": "Benutzer",
     "LOGOUT": "Abmelden"
   },
+  "LANDING": {
+    "TITLE": "POS",
+    "SUBTITLE": "Wählen Sie Ihr Restaurant für die Anmeldung",
+    "LOGIN": "Anmelden",
+    "NO_TENANTS": "Noch keine Restaurants registriert.",
+    "AT_TABLE_LABEL": "An Tisch bestellen",
+    "AT_TABLE_HINT": "Bereits am Tisch? Geben Sie den Tischcode ein, um zu bestellen.",
+    "TABLE_CODE_PLACEHOLDER": "Tischcode",
+    "GO": "Los",
+    "BOOK_TABLE": "Tisch reservieren"
+  },
   "DASHBOARD": {
     "TITLE": "Dashboard",
     "WELCOME_BACK": "Willkommen zurück",
@@ -358,6 +369,7 @@
   },
   "RESERVATIONS": {
     "TITLE": "Reservierungen",
+    "RESERVATION_NUMBER": "Reservierungsnummer",
     "NEW": "Neue Reservierung",
     "LOADING": "Laden...",
     "NONE": "Keine Reservierungen",

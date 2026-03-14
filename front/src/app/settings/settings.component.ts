@@ -1552,7 +1552,7 @@ export class SettingsComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/']);
+    this.router.navigate(['/dashboard']);
   }
 
   useCurrentLocation() {
