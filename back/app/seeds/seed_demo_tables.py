@@ -72,8 +72,8 @@ def _seed_tenant_tables(session, tenant_id: int) -> None:
             token = str(uuid4())
             session.execute(
                 text(
-                    '''INSERT INTO "table" (tenant_id, name, token, floor_id, seat_count, x_position, y_position, rotation, shape, width, height)
-                       VALUES (:tid, :name, :token, :floor_id, :seat_count, 0, 0, 0, 'rectangle', 100, 60)'''
+                    '''INSERT INTO "table" (tenant_id, name, token, floor_id, seat_count, x_position, y_position, rotation, shape, width, height, is_active)
+                       VALUES (:tid, :name, :token, :floor_id, :seat_count, 0, 0, 0, 'rectangle', 100, 60, false)'''
                 ),
                 {
                     "tid": tenant_id,
