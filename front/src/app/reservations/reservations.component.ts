@@ -5,7 +5,7 @@ import { ApiService, Reservation, ReservationCreate, ReservationUpdate, Reservat
 import { PermissionService } from '../services/permission.service';
 import { SidebarComponent } from '../shared/sidebar.component';
 import { ConfirmationModalComponent } from '../shared/confirmation-modal.component';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-reservations',
@@ -60,9 +60,7 @@ import { TranslateModule } from '@ngx-translate/core';
                 <div>{{ r.reservation_date }} {{ r.reservation_time }}</div>
                 <div>{{ 'RESERVATIONS.PARTY_SIZE' | translate }}: {{ r.party_size }}</div>
                 <div>{{ r.customer_phone }}</div>
-                @if (r.table_id) {
-                  <div class="table-assigned">{{ 'RESERVATIONS.TABLE' | translate }}: {{ getTableName(r.table_id) }}</div>
-                }
+                <div class="table-assigned">{{ 'RESERVATIONS.TABLE' | translate }}: {{ getTableDisplay(r) }}</div>
               </div>
               <div class="card-actions">
                 @if (r.status === 'booked' && canWrite()) {
@@ -204,6 +202,7 @@ import { TranslateModule } from '@ngx-translate/core';
 export class ReservationsComponent implements OnInit {
   private api = inject(ApiService);
   private permissions = inject(PermissionService);
+  private translate = inject(TranslateService);
 
   loading = signal(false);
   reservations = signal<Reservation[]>([]);
@@ -254,6 +253,13 @@ export class ReservationsComponent implements OnInit {
 
   getTableName(tableId: number): string {
     return this.tablesWithStatus().find(t => t.id === tableId)?.name ?? String(tableId);
+  }
+
+  /** Table to show in list: API table_name, or lookup by id, or "not assigned". */
+  getTableDisplay(r: Reservation): string {
+    if (r.table_name) return r.table_name;
+    if (r.table_id != null) return this.getTableName(r.table_id);
+    return this.translate.instant('RESERVATIONS.TABLE_NOT_ASSIGNED');
   }
 
   openCreate() {

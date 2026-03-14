@@ -431,6 +431,140 @@ $cart-expanded-max: 60vh;
 // ============================================
 // ORDER TRACKER
 // ============================================
+// Customer orders section (current + history)
+.customer-orders-section {
+  margin-bottom: var(--space-6);
+}
+
+.customer-orders-heading {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 var(--space-3);
+}
+
+.no-order-card {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.no-order-title {
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 var(--space-1);
+}
+
+.no-order-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.order-history-section {
+  margin-top: var(--space-6);
+}
+
+.no-history-text {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.history-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.history-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+
+  &:hover {
+    background: var(--color-bg);
+  }
+}
+
+.history-order-id {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.history-meta {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.history-total {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.history-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.history-card-body {
+  padding: 0 var(--space-4) var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.history-items {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.history-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: 0.875rem;
+}
+
+.history-item-qty {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.history-item-name {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.history-item-price {
+  color: var(--color-text-muted);
+}
+
+// ============================================
 // Order status bar (always visible when user has an order)
 .order-status-bar {
   margin-bottom: var(--space-4);

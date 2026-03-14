@@ -94,7 +94,8 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "liveReload": true,
-            "hmr": true
+            "hmr": true,
+            "proxyConfig": "src/proxy.conf.json"
           },
           "configurations": {
             "production": {

@@ -59,6 +59,11 @@ A Point of Sale system with Angular frontend and FastAPI backend using PostgreSQ
  - **Translation Management**: Admin → Settings → Translations
  - **API Language Parameter**: Add `?lang=es` to API requests for localized content
 
+### Table reservations
+
+- **Staff**: Log in and open **Reservations** in the sidebar to list, create, edit, seat at a table, and finish or cancel reservations.
+- **End users (public)**: Customers can book a table at **`/book/:tenantId`** (e.g. `http://localhost:4203/book/1`) and view or cancel at **`/reservation?token=...`**. No login required. See [docs/TABLE_RESERVATION_USER_GUIDE.md](docs/TABLE_RESERVATION_USER_GUIDE.md) for URLs and flow.
+
 ### Viewing Logs
 
 ```bash

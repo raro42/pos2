@@ -142,6 +142,7 @@ export interface Reservation {
   party_size: number;
   status: ReservationStatus;
   table_id?: number | null;
+  table_name?: string | null;
   token?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -257,6 +258,14 @@ export interface OrderCreate {
   longitude?: number | null;  // Optional GPS longitude for location verification
 }
 
+export interface OrderHistoryItem {
+  id: number;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+  items: { id: number; product_name: string; quantity: number; price_cents: number }[];
+  total_cents: number;
+}
 
 // Provider & Catalog Interfaces
 export interface Provider {
@@ -660,6 +669,12 @@ export class ApiService {
     return this.http.get(`${this.apiUrl}/menu/${tableToken}/order`, { params });
   }
 
+  getOrderHistory(tableToken: string, limit = 10): Observable<OrderHistoryItem[]> {
+    return this.http.get<OrderHistoryItem[]>(`${this.apiUrl}/menu/${tableToken}/order-history`, {
+      params: { limit }
+    });
+  }
+
   // Payments
   createPaymentIntent(orderId: number, tableToken: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/orders/${orderId}/create-payment-intent?table_token=${tableToken}`, {});
@@ -730,12 +745,31 @@ export class ApiService {
     return `${this.apiUrl}/uploads/${tenantId}/logo/${logoFilename}`;
   }
 
+  /** Get token for WebSocket auth (cookie may not be sent on WS upgrade from some origins). */
+  getWsToken(): Observable<{ access_token: string }> {
+    return this.http.get<{ access_token: string }>(`${this.apiUrl}/ws-token`, {
+      withCredentials: true,
+    });
+  }
+
   // WebSocket for real-time updates (restaurant owners only)
   connectWebSocket(): void {
     const user = this.getCurrentUser();
     if (!user || this.ws) return;
 
-    // Normalize WebSocket URL - handle both http/https and ws/wss formats
+    // Fetch token so we can pass it in the URL; cookie may not be sent on WebSocket upgrade (e.g. cross-origin)
+    this.getWsToken().subscribe({
+      next: (res) => this.connectWebSocketWithToken(user.tenant_id, res.access_token),
+      error: (err) => {
+        console.warn('Could not get WebSocket token, connection may fail:', err?.status ?? err);
+        this.connectWebSocketWithToken(user.tenant_id, null);
+      },
+    });
+  }
+
+  private connectWebSocketWithToken(tenantId: number, token: string | null): void {
+    if (this.ws) return;
+
     let wsUrl = this.wsUrl;
     
     // Handle relative URLs (e.g. '/ws')
@@ -748,15 +782,14 @@ export class ApiService {
       wsUrl = wsUrl.replace('http://', 'ws://');
     } else if (wsUrl.startsWith('https://')) {
       wsUrl = wsUrl.replace('https://', 'wss://');
-    } 
+    }
     // Handle implicit protocol
     else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
       wsUrl = `ws://${wsUrl}`;
     }
 
-    // Use tenant endpoint - auth via HttpOnly cookie
-    // wsUrl already contains /ws base path
-    const wsEndpoint = `${wsUrl}/tenant/${user.tenant_id}`;
+    const base = `${wsUrl}/tenant/${tenantId}`;
+    const wsEndpoint = token ? `${base}?token=${encodeURIComponent(token)}` : base;
 
     try {
       this.ws = new WebSocket(wsEndpoint);
@@ -790,7 +823,7 @@ export class ApiService {
       this.ws.onerror = (error) => {
         console.error('WebSocket error:', error);
         console.error('WebSocket URL attempted:', wsEndpoint);
-        console.error('User tenant_id:', user.tenant_id);
+        console.error('Tenant id:', tenantId);
         // Try to get more error details
         if (this.ws) {
           console.error('WebSocket readyState:', this.ws.readyState);
@@ -807,7 +840,6 @@ export class ApiService {
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
       console.error('WebSocket URL attempted:', wsEndpoint);
-      console.error('User:', user);
     }
   }
 

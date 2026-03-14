@@ -11,10 +11,11 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from typing import Optional
+from urllib.parse import unquote
 
 import httpx
 import redis.asyncio as redis
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, Request, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -351,33 +352,39 @@ async def websocket_table_endpoint(websocket: WebSocket, table_token: str):
                 del table_connections[table_id]
 
 
+def _get_ws_token(websocket: WebSocket) -> Optional[str]:
+    """Get token from query string or cookie; avoid Query() which can cause 403 before accept()."""
+    # Query params from scope (reliable for WebSocket handshake)
+    query_string = websocket.scope.get("query_string", b"").decode("utf-8", errors="replace")
+    if query_string:
+        for part in query_string.split("&"):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                if k.strip().lower() == "token":
+                    return unquote(v.strip()) or None
+    return websocket.cookies.get("access_token")
+
+
 @app_base.websocket("/ws/tenant/{tenant_id}")
 @app_base.websocket("/tenant/{tenant_id}")  # Also accept without /ws prefix (for HAProxy)
-async def websocket_tenant_endpoint(
-    websocket: WebSocket,
-    tenant_id: int,
-    token: Optional[str] = Query(None)
-):
+async def websocket_tenant_endpoint(websocket: WebSocket, tenant_id: int):
     """WebSocket endpoint for restaurant owners - requires JWT authentication."""
     client_host = websocket.client.host if websocket.client else "unknown"
+    token = _get_ws_token(websocket)
     logger.info(f"WebSocket connection attempt: /ws/tenant/{tenant_id} from {client_host} (token present: {bool(token)})")
-    
+
     try:
         await websocket.accept()
     except Exception as e:
         logger.error(f"Failed to accept WebSocket connection for /ws/tenant/{tenant_id}: {e}")
         return
-    
-    # Try to get token from cookies if not in query params
-    if not token:
-        token = websocket.cookies.get("access_token")
-    
-    # Validate JWT token
+
+    # Validate after accept(); reject with close(1008) so client sees auth failure, not 403
     if not token:
         logger.warning(f"WebSocket /ws/tenant/{tenant_id}: Missing token from {client_host}")
         await websocket.close(code=1008, reason="Missing authentication token")
         return
-    
+
     token_info = validate_jwt_token(token)
     if not token_info:
         logger.warning(
@@ -386,8 +393,7 @@ async def websocket_tenant_endpoint(
         )
         await websocket.close(code=1008, reason="Invalid authentication token")
         return
-    
-    # Verify tenant_id matches token
+
     if token_info["tenant_id"] != tenant_id:
         logger.warning(
             f"WebSocket /ws/tenant/{tenant_id}: Tenant ID mismatch from {client_host} "
@@ -395,24 +401,23 @@ async def websocket_tenant_endpoint(
         )
         await websocket.close(code=1008, reason="Tenant ID mismatch")
         return
-    
+
     logger.info(f"WebSocket /ws/tenant/{tenant_id}: Successfully authenticated for tenant {tenant_id} from {client_host}")
-    
+
     # Add to connections
     if tenant_id not in tenant_connections:
         tenant_connections[tenant_id] = set()
     tenant_connections[tenant_id].add(websocket)
-    
+
     try:
         while True:
-            # Keep connection alive, handle any incoming messages
             data = await websocket.receive_text()
-            # Could handle client messages here if needed (e.g., ping/pong)
     except WebSocketDisconnect:
         pass
     finally:
-        # Remove from connections
         if tenant_id in tenant_connections:
             tenant_connections[tenant_id].discard(websocket)
             if not tenant_connections[tenant_id]:
                 del tenant_connections[tenant_id]
+
+
