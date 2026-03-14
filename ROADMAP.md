@@ -3,21 +3,28 @@
 ## Feature Development Status
 
 ### ✅ Completed Features
-- **Order Management System**: Full order lifecycle (pending → preparing → ready → delivered → paid)
-- **Customer Name Support**: Customers can enter their name, displayed in customer-facing menu and admin orders view
-- **Bidirectional Status Controls**: Order and item status can be moved forward and backward with user-friendly dropdown menus
-- **Currency Support**: Restaurant currency settings are respected throughout the application (orders, menu, etc.)
-- **Immediate Payment Required Setting**: Database field and admin settings UI implemented
-- **Customer-Facing Menu**: Full menu browsing, cart, and order placement functionality
-- **Payment Integration**: Stripe payment processing for customer orders
-- **Real-time Updates**: WebSocket support for order status updates
+- **Order Management System**: Full order lifecycle (pending → preparing → ready → delivered → paid). Session-based orders per browser; status reset when adding items to ready orders. See `docs/ORDER_MANAGEMENT_LOGIC.md` and `docs/IMPLEMENTATION_VERIFICATION.md`.
+- **Order modification & soft delete**: Customers can remove items, change quantities, cancel orders (before delivery). Staff can cancel items. Removed items shown with "Show Removed Items" toggle. Item-level status (pending → preparing → ready → delivered).
+- **Customer Name Support**: Customers can enter their name, displayed in customer-facing menu and admin orders view.
+- **Bidirectional Status Controls**: Order and item status can be moved forward and backward with user-friendly dropdown menus.
+- **Currency Support**: Restaurant currency settings are respected throughout the application (orders, menu, etc.).
+- **Immediate Payment Required**: Database field, admin settings UI, menu API returns `tenant_immediate_payment_required`; when enabled, checkout modal auto-opens after placing an order.
+- **Customer-Facing Menu**: Full menu browsing, cart, order placement, order history section; `GET /menu/{table_token}/order-history`.
+- **Payment Integration**: Stripe payment processing for customer orders.
+- **Real-time Updates**: WebSocket support for order status updates; token-based WS auth (`/ws-token`, frontend `getWsToken()`).
+- **Table reservations**: Staff list/create/edit/cancel/seat/finish at `/reservations`; public book at `/book/:tenantId`, view/cancel by token at `/reservation?token=...`. Table status includes `reserved`. See `docs/TABLE_RESERVATION_IMPLEMENTATION_PLAN.md`, `docs/TABLE_RESERVATION_USER_GUIDE.md`.
+- **Table PIN security**: Table activation, 4-digit PIN validation for placing orders, PIN rate limiting (Redis). See `docs/TABLE_PIN_SECURITY.md`.
+- **Translations**: Frontend i18n (`@ngx-translate`, `front/public/i18n/*.json`), backend localized messages (`back/app/messages.py`), language detection and persistence. See `docs/TRANSLATION_IMPLEMENTATION.md`.
+- **Deployment**: Config guide for domain/IP, `API_URL`, `WS_URL`, CORS. See `docs/DEPLOYMENT.md`.
 
 ### ❌ Missing Features / To Be Implemented
-- **Implement "Immediate payment required" in customer facing "/menu"**: The `immediate_payment_required` setting exists in the database and can be configured in admin settings, but it's not yet enforced in the customer-facing `/menu` component. When enabled:
-  - The menu endpoint should return `immediate_payment_required` flag
-  - After placing an order, customers should be automatically redirected to payment
-  - The "Pay Now" button should be the primary action (or payment modal should auto-open)
-  - Customers should not be able to proceed without payment when this setting is enabled
+- **Customer accounts (planned)**: Registration, login, email verification, MFA, customer order history, invoice generation. Not implemented; see `docs/CUSTOMER_FEATURES_PLAN.md` for full scope.
+- **Order management Phase 4 (advanced)**: Batch status updates, status/audit history, item replacement, modification after payment/refund, analytics. See `docs/IMPLEMENTATION_VERIFICATION.md` § "NOT IMPLEMENTED (Phase 4)".
+- **Stricter “immediate payment” (optional)**: Today the menu auto-opens payment after place order; customers can still close the modal. A strict “cannot place another order or proceed without paying” flow is not enforced.
+
+### Documentation reference
+- **`docs/`**: `ORDER_MANAGEMENT_LOGIC.md`, `IMPLEMENTATION_VERIFICATION.md`, `TABLE_RESERVATION_*`, `TABLE_PIN_SECURITY.md`, `TRANSLATION_IMPLEMENTATION.md`, `DEPLOYMENT.md`, `CUSTOMER_FEATURES_PLAN.md`, `EMAIL_SENDING_OPTIONS.md`, `GMAIL_SETUP_INSTRUCTIONS.md`, `VERIFICATION_ALTERNATIVES.md`.
+- **`CHANGELOG.md`**: Tracks unreleased and released changes (reservations, order history, WebSocket, fixes).
 
 ---
 
