@@ -10,7 +10,8 @@
     "test": "ng test",
     "serve:ssr:front": "node dist/front/server/server.mjs",
     "debug:reservations": "node scripts/debug-reservations.mjs",
-    "debug:reservations:public": "node scripts/debug-reservations-public.mjs"
+    "debug:reservations:public": "node scripts/debug-reservations-public.mjs",
+    "test:register": "node scripts/test-register.mjs"
   },
   "prettier": {
     "printWidth": 100,
