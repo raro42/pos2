@@ -38,4 +38,5 @@ jobs:
             docker compose --env-file config.env -f docker-compose.yml -f docker-compose.prod.yml down || true
             docker compose --env-file config.env -f docker-compose.yml -f docker-compose.prod.yml build back
             docker compose --env-file config.env -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+            sleep 15
             docker compose --env-file config.env exec -T back python -m app.migrate || true"
