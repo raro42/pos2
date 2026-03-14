@@ -3,7 +3,7 @@
 ## Feature Development Status
 
 ### ✅ Completed Features
-- **Order Management System**: Full order lifecycle (pending → preparing → ready → delivered → paid). Session-based orders per browser; status reset when adding items to ready orders. See `docs/ORDER_MANAGEMENT_LOGIC.md` and `docs/IMPLEMENTATION_VERIFICATION.md`.
+- **Order Management System**: Full order lifecycle (pending → preparing → ready → delivered → paid). Session-based orders per browser; status reset when adding items to ready orders. See `docs/0008-order-management-logic.md` and `docs/0007-implementation-verification.md`.
 - **Order modification & soft delete**: Customers can remove items, change quantities, cancel orders (before delivery). Staff can cancel items. Removed items shown with "Show Removed Items" toggle. Item-level status (pending → preparing → ready → delivered).
 - **Customer Name Support**: Customers can enter their name, displayed in customer-facing menu and admin orders view.
 - **Bidirectional Status Controls**: Order and item status can be moved forward and backward with user-friendly dropdown menus.
@@ -12,18 +12,18 @@
 - **Customer-Facing Menu**: Full menu browsing, cart, order placement, order history section; `GET /menu/{table_token}/order-history`.
 - **Payment Integration**: Stripe payment processing for customer orders.
 - **Real-time Updates**: WebSocket support for order status updates; token-based WS auth (`/ws-token`, frontend `getWsToken()`).
-- **Table reservations**: Staff list/create/edit/cancel/seat/finish at `/reservations`; public book at `/book/:tenantId`, view/cancel by token at `/reservation?token=...`. Table status includes `reserved`. See `docs/TABLE_RESERVATION_IMPLEMENTATION_PLAN.md`, `docs/TABLE_RESERVATION_USER_GUIDE.md`.
-- **Table PIN security**: Table activation, 4-digit PIN validation for placing orders, PIN rate limiting (Redis). See `docs/TABLE_PIN_SECURITY.md`.
-- **Translations**: Frontend i18n (`@ngx-translate`, `front/public/i18n/*.json`), backend localized messages (`back/app/messages.py`), language detection and persistence. See `docs/TRANSLATION_IMPLEMENTATION.md`.
-- **Deployment**: Config guide for domain/IP, `API_URL`, `WS_URL`, CORS. See `docs/DEPLOYMENT.md`.
+- **Table reservations**: Staff list/create/edit/cancel/seat/finish at `/reservations`; public book at `/book/:tenantId`, view/cancel by token at `/reservation?token=...`. Table status includes `reserved`. See `docs/0010-table-reservation-implementation-plan.md`, `docs/0011-table-reservation-user-guide.md`.
+- **Table PIN security**: Table activation, 4-digit PIN validation for placing orders, PIN rate limiting (Redis). See `docs/0009-table-pin-security.md`.
+- **Translations**: Frontend i18n (`@ngx-translate`, `front/public/i18n/*.json`), backend localized messages (`back/app/messages.py`), language detection and persistence. See `docs/0012-translation-implementation.md`.
+- **Deployment**: Config guide for domain/IP, `API_URL`, `WS_URL`, CORS. See `docs/0004-deployment.md`.
 
 ### ❌ Missing Features / To Be Implemented
-- **Customer accounts (planned)**: Registration, login, email verification, MFA, customer order history, invoice generation. Not implemented; see `docs/CUSTOMER_FEATURES_PLAN.md` for full scope.
-- **Order management Phase 4 (advanced)**: Batch status updates, status/audit history, item replacement, modification after payment/refund, analytics. See `docs/IMPLEMENTATION_VERIFICATION.md` § "NOT IMPLEMENTED (Phase 4)".
+- **Customer accounts (planned)**: Registration, login, email verification, MFA, customer order history, invoice generation. Not implemented; see `docs/0002-customer-features-plan.md` for full scope.
+- **Order management Phase 4 (advanced)**: Batch status updates, status/audit history, item replacement, modification after payment/refund, analytics. See `docs/0007-implementation-verification.md` § "NOT IMPLEMENTED (Phase 4)".
 - **Stricter “immediate payment” (optional)**: Today the menu auto-opens payment after place order; customers can still close the modal. A strict “cannot place another order or proceed without paying” flow is not enforced.
 
 ### Documentation reference
-- **`docs/`**: `ORDER_MANAGEMENT_LOGIC.md`, `IMPLEMENTATION_VERIFICATION.md`, `TABLE_RESERVATION_*`, `TABLE_PIN_SECURITY.md`, `TRANSLATION_IMPLEMENTATION.md`, `DEPLOYMENT.md`, `CUSTOMER_FEATURES_PLAN.md`, `EMAIL_SENDING_OPTIONS.md`, `GMAIL_SETUP_INSTRUCTIONS.md`, `VERIFICATION_ALTERNATIVES.md`.
+- **`docs/`**: `0008-order-management-logic.md`, `0007-implementation-verification.md`, `0010-table-reservation-implementation-plan.md`, `0011-table-reservation-user-guide.md`, `0009-table-pin-security.md`, `0012-translation-implementation.md`, `0004-deployment.md`, `0002-customer-features-plan.md`, `0005-email-sending-options.md`, `0006-gmail-setup-instructions.md`, `0013-verification-alternatives.md`.
 - **`CHANGELOG.md`**: Tracks unreleased and released changes (reservations, order history, WebSocket, fixes).
 
 ---

@@ -2,7 +2,7 @@
 
 Steps to get the latest **master** or **main** branch deployed on a server where the project lives (e.g. `/development/pos2`).
 
-**amvara9:** Automatic deploy on push to master is set up via GitHub Actions. See [CI_CD_AMVARA9.md](CI_CD_AMVARA9.md).
+**amvara9:** Automatic deploy on push to master is set up via GitHub Actions. See [0001-ci-cd-amvara9.md](0001-ci-cd-amvara9.md).
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Steps to get the latest **master** or **main** branch deployed on a server where
    - `CORS_ORIGINS` – exact origin(s) where the frontend is served (e.g. `https://amvara8.example.com` or `http://amvara8:4200`)
    - `SECRET_KEY` and `REFRESH_SECRET_KEY` – set to strong random values in production  
 
-   See [DEPLOYMENT.md](DEPLOYMENT.md) for details.
+   See [0004-deployment.md](0004-deployment.md) for details.
 
 4. **Rebuild and start (production mode)**  
    From the project root (`/development/pos2`):
