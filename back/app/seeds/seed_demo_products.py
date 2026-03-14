@@ -1,5 +1,5 @@
 """
-Seed demo restaurant (tenant 1) with a default set of products.
+Seed default products for any tenant that has no products.
 Idempotent: creates only products that don't exist (by tenant_id + name).
 No image filenames so it works on any new deployment.
 
@@ -8,17 +8,13 @@ Usage:
   cd back && python -m app.seeds.seed_demo_products
 """
 
-import sys
-
 from sqlalchemy import text
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.db import engine
-from app.models import Product, Tenant
+from app.models import Product
 
-DEMO_TENANT_ID = 1
-
-# Default menu for demo restaurant: name, price_cents, category, ingredients (optional)
+# Default menu: name, price_cents, category, ingredients (optional)
 DEMO_PRODUCTS = [
     # Main courses
     ("Enchiladas", 2000, "Main Course", "tortillas, chiles, protein, cheese, cream"),
@@ -35,40 +31,52 @@ DEMO_PRODUCTS = [
 ]
 
 
+def _seed_tenant_products(session, tenant_id: int) -> int:
+    """Create missing demo products for tenant. Returns number created."""
+    result = session.execute(
+        text('SELECT name FROM product WHERE tenant_id = :tid'),
+        {"tid": tenant_id},
+    )
+    existing_names = {row[0] for row in result.fetchall()}
+    created = 0
+    for name, price_cents, category, ingredients in DEMO_PRODUCTS:
+        if name in existing_names:
+            continue
+        product = Product(
+            tenant_id=tenant_id,
+            name=name,
+            price_cents=price_cents,
+            category=category,
+            ingredients=ingredients,
+            image_filename=None,
+            description=None,
+        )
+        session.add(product)
+        created += 1
+    return created
+
+
 def run() -> None:
     with Session(engine) as session:
-        tenant = session.get(Tenant, DEMO_TENANT_ID)
-        if not tenant:
-            print(f"Tenant id={DEMO_TENANT_ID} not found. Create a tenant (e.g. via register) first.")
-            sys.exit(1)
+        result = session.execute(text("SELECT id FROM tenant ORDER BY id"))
+        tenant_ids = [row[0] for row in result.fetchall()]
+        if not tenant_ids:
+            print("No tenants found.")
+            return
 
-        result = session.execute(
-            text('SELECT name FROM product WHERE tenant_id = :tid'),
-            {"tid": DEMO_TENANT_ID},
-        )
-        existing_names = {row[0] for row in result.fetchall()}
+        result = session.execute(text("SELECT tenant_id FROM product GROUP BY tenant_id"))
+        tenants_with_products = {row[0] for row in result.fetchall()}
+        to_seed = [tid for tid in tenant_ids if tid not in tenants_with_products]
 
-        created = 0
-        for name, price_cents, category, ingredients in DEMO_PRODUCTS:
-            if name in existing_names:
-                continue
-            product = Product(
-                tenant_id=DEMO_TENANT_ID,
-                name=name,
-                price_cents=price_cents,
-                category=category,
-                ingredients=ingredients,
-                image_filename=None,
-                description=None,
-            )
-            session.add(product)
-            created += 1
+        if not to_seed:
+            print("All tenants already have products. Nothing to seed.")
+            return
 
-        if created:
-            session.commit()
-            print(f"Created {created} demo products for tenant {DEMO_TENANT_ID}.")
-        else:
-            print("All demo products already exist for tenant 1.")
+        for tenant_id in to_seed:
+            created = _seed_tenant_products(session, tenant_id)
+            if created:
+                session.commit()
+                print(f"Tenant {tenant_id}: created {created} demo products.")
 
     print("Done.")
 
