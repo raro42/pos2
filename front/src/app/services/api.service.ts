@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap, Subject, catchError, of } from 'rxjs';
+import { Observable, BehaviorSubject, tap, Subject, catchError, of, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 // Interfaces
@@ -77,6 +77,8 @@ export interface Floor {
   name: string;
   sort_order: number;
   tenant_id?: number;
+  default_waiter_id?: number | null;
+  default_waiter_name?: string | null;
 }
 
 export interface Table {
@@ -97,6 +99,11 @@ export interface Table {
   is_active?: boolean;
   active_order_id?: number | null;
   activated_at?: string | null;
+  // Waiter assignment
+  assigned_waiter_id?: number | null;
+  assigned_waiter_name?: string | null;
+  effective_waiter_id?: number | null;
+  effective_waiter_name?: string | null;
 }
 
 export interface TableActivateResponse {
@@ -117,6 +124,45 @@ export interface TableCloseResponse {
 
 export interface CanvasTable extends Table {
   status?: 'available' | 'occupied' | 'reserved';
+  assigned_waiter_id?: number | null;
+  assigned_waiter_name?: string | null;
+  effective_waiter_id?: number | null;
+  effective_waiter_name?: string | null;
+}
+
+export type ReservationStatus = 'booked' | 'seated' | 'finished' | 'cancelled';
+
+export interface Reservation {
+  id: number;
+  tenant_id: number;
+  customer_name: string;
+  customer_phone: string;
+  reservation_date: string;
+  reservation_time: string;
+  party_size: number;
+  status: ReservationStatus;
+  table_id?: number | null;
+  table_name?: string | null;
+  token?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface ReservationCreate {
+  tenant_id?: number;
+  customer_name: string;
+  customer_phone: string;
+  reservation_date: string;
+  reservation_time: string;
+  party_size: number;
+}
+
+export interface ReservationUpdate {
+  customer_name?: string;
+  customer_phone?: string;
+  reservation_date?: string;
+  reservation_time?: string;
+  party_size?: number;
 }
 
 export interface OrderItem {
@@ -184,6 +230,7 @@ export interface TenantSettings {
   currency?: string | null;
   currency_code?: string | null;
   default_language?: string | null;
+  timezone?: string | null;
   stripe_secret_key?: string | null;
   stripe_publishable_key?: string | null;
   logo_size_bytes?: number | null;
@@ -210,6 +257,15 @@ export interface OrderCreate {
   pin?: string;  // Required PIN for table ordering
   latitude?: number | null;  // Optional GPS latitude for location verification
   longitude?: number | null;  // Optional GPS longitude for location verification
+}
+
+export interface OrderHistoryItem {
+  id: number;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+  items: { id: number; product_name: string; quantity: number; price_cents: number }[];
+  total_cents: number;
 }
 
 // Provider & Catalog Interfaces
@@ -433,6 +489,58 @@ export class ApiService {
     return this.http.get<CanvasTable[]>(`${this.apiUrl}/tables/with-status`);
   }
 
+  // Reservations (staff)
+  getReservations(params?: { date?: string; status?: string; phone?: string }): Observable<Reservation[]> {
+    let httpParams = new HttpParams();
+    if (params?.date) httpParams = httpParams.set('reservation_date', params.date);
+    if (params?.status) httpParams = httpParams.set('status', params.status);
+    if (params?.phone) httpParams = httpParams.set('phone', params.phone);
+    return this.http.get<Reservation[]>(`${this.apiUrl}/reservations`, { params: httpParams });
+  }
+
+  getReservation(id: number): Observable<Reservation> {
+    return this.http.get<Reservation>(`${this.apiUrl}/reservations/${id}`);
+  }
+
+  createReservation(data: ReservationCreate): Observable<Reservation> {
+    return this.http.post<Reservation>(`${this.apiUrl}/reservations`, data);
+  }
+
+  updateReservation(id: number, data: ReservationUpdate): Observable<Reservation> {
+    return this.http.put<Reservation>(`${this.apiUrl}/reservations/${id}`, data);
+  }
+
+  updateReservationStatus(id: number, status: ReservationStatus): Observable<Reservation> {
+    return this.http.put<Reservation>(`${this.apiUrl}/reservations/${id}/status`, { status });
+  }
+
+  seatReservation(id: number, tableId: number): Observable<Reservation> {
+    return this.http.put<Reservation>(`${this.apiUrl}/reservations/${id}/seat`, { table_id: tableId });
+  }
+
+  finishReservation(id: number): Observable<Reservation> {
+    return this.http.put<Reservation>(`${this.apiUrl}/reservations/${id}/finish`, {});
+  }
+
+  // Reservations (public - no auth)
+  getReservationByToken(token: string): Observable<Reservation> {
+    return this.http.get<Reservation>(`${this.apiUrl}/reservations/by-token`, { params: { token } });
+  }
+
+  createReservationPublic(data: ReservationCreate): Observable<Reservation> {
+    return this.http.post<Reservation>(`${this.apiUrl}/reservations`, data);
+  }
+
+  getNextAvailableReservation(tenantId: number, date: string): Observable<{ date: string; time: string }> {
+    return this.http.get<{ date: string; time: string }>(`${this.apiUrl}/reservations/next-available`, {
+      params: { tenant_id: tenantId.toString(), date },
+    });
+  }
+
+  cancelReservationPublic(id: number, token: string): Observable<Reservation> {
+    return this.http.put<Reservation>(`${this.apiUrl}/reservations/${id}/cancel`, {}, { params: { token } });
+  }
+
   createTable(name: string, floorId?: number): Observable<Table> {
     const body: { name: string; floor_id?: number } = { name };
     if (floorId !== undefined) body.floor_id = floorId;
@@ -458,6 +566,20 @@ export class ApiService {
 
   regenerateTablePin(tableId: number): Observable<TableActivateResponse> {
     return this.http.post<TableActivateResponse>(`${this.apiUrl}/tables/${tableId}/regenerate-pin`, {});
+  }
+
+  assignWaiterToTable(tableId: number, waiterId: number | null): Observable<any> {
+    return this.http.put(`${this.apiUrl}/tables/${tableId}/assign-waiter`, { waiter_id: waiterId });
+  }
+
+  assignWaiterToFloor(floorId: number, waiterId: number | null): Observable<any> {
+    return this.http.put(`${this.apiUrl}/floors/${floorId}/assign-waiter`, { waiter_id: waiterId });
+  }
+
+  getWaiters(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.apiUrl}/users`).pipe(
+      map((users: User[]) => users.filter(u => u.role === 'waiter'))
+    );
   }
 
   // Orders
@@ -554,6 +676,12 @@ export class ApiService {
     return this.http.get(`${this.apiUrl}/menu/${tableToken}/order`, { params });
   }
 
+  getOrderHistory(tableToken: string, limit = 10): Observable<OrderHistoryItem[]> {
+    return this.http.get<OrderHistoryItem[]>(`${this.apiUrl}/menu/${tableToken}/order-history`, {
+      params: { limit }
+    });
+  }
+
   // Payments
   createPaymentIntent(orderId: number, tableToken: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/orders/${orderId}/create-payment-intent?table_token=${tableToken}`, {});
@@ -564,6 +692,19 @@ export class ApiService {
       `${this.apiUrl}/orders/${orderId}/confirm-payment?table_token=${tableToken}&payment_intent_id=${paymentIntentId}`,
       {}
     );
+  }
+
+  requestPayment(tableToken: string, orderId: number, paymentMethod: string, message?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/menu/${tableToken}/order/${orderId}/request-payment`, {
+      payment_method: paymentMethod,
+      message: message || null,
+    });
+  }
+
+  callWaiter(tableToken: string, message?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/menu/${tableToken}/call-waiter`, {
+      message: message || null,
+    });
   }
 
   private tenantStripeKey = signal<string | null>(null);
@@ -611,25 +752,51 @@ export class ApiService {
     return `${this.apiUrl}/uploads/${tenantId}/logo/${logoFilename}`;
   }
 
+  /** Get token for WebSocket auth (cookie may not be sent on WS upgrade from some origins). */
+  getWsToken(): Observable<{ access_token: string }> {
+    return this.http.get<{ access_token: string }>(`${this.apiUrl}/ws-token`, {
+      withCredentials: true,
+    });
+  }
+
   // WebSocket for real-time updates (restaurant owners only)
   connectWebSocket(): void {
     const user = this.getCurrentUser();
     if (!user || this.ws) return;
 
-    // Normalize WebSocket URL - handle both http/https and ws/wss formats
+    // Fetch token so we can pass it in the URL; cookie may not be sent on WebSocket upgrade (e.g. cross-origin)
+    this.getWsToken().subscribe({
+      next: (res) => this.connectWebSocketWithToken(user.tenant_id, res.access_token),
+      error: (err) => {
+        console.warn('Could not get WebSocket token, connection may fail:', err?.status ?? err);
+        this.connectWebSocketWithToken(user.tenant_id, null);
+      },
+    });
+  }
+
+  private connectWebSocketWithToken(tenantId: number, token: string | null): void {
+    if (this.ws) return;
+
     let wsUrl = this.wsUrl;
-    if (wsUrl.startsWith('http://')) {
+    
+    // Handle relative URLs (e.g. '/ws')
+    if (wsUrl.startsWith('/')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}${wsUrl}`;
+    }
+    // Handle absolute HTTP URLs
+    else if (wsUrl.startsWith('http://')) {
       wsUrl = wsUrl.replace('http://', 'ws://');
     } else if (wsUrl.startsWith('https://')) {
       wsUrl = wsUrl.replace('https://', 'wss://');
-    } else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-      // If it doesn't start with a protocol, assume ws://
+    }
+    // Handle implicit protocol
+    else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
       wsUrl = `ws://${wsUrl}`;
     }
 
-    // Use tenant endpoint - auth via HttpOnly cookie
-    // wsUrl already contains /ws base path
-    const wsEndpoint = `${wsUrl}/tenant/${user.tenant_id}`;
+    const base = `${wsUrl}/tenant/${tenantId}`;
+    const wsEndpoint = token ? `${base}?token=${encodeURIComponent(token)}` : base;
 
     try {
       this.ws = new WebSocket(wsEndpoint);
@@ -663,7 +830,7 @@ export class ApiService {
       this.ws.onerror = (error) => {
         console.error('WebSocket error:', error);
         console.error('WebSocket URL attempted:', wsEndpoint);
-        console.error('User tenant_id:', user.tenant_id);
+        console.error('Tenant id:', tenantId);
         // Try to get more error details
         if (this.ws) {
           console.error('WebSocket readyState:', this.ws.readyState);
@@ -680,7 +847,6 @@ export class ApiService {
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
       console.error('WebSocket URL attempted:', wsEndpoint);
-      console.error('User:', user);
     }
   }
 

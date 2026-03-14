@@ -1,7 +1,8 @@
 import json
 import logging
 import os
-from datetime import timedelta, datetime, timezone
+from datetime import date, timedelta, datetime, time, timezone
+from zoneinfo import ZoneInfo
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Dict
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel as _BaseModel
 from sqlmodel import Session, select
 
 from . import models, security
@@ -311,6 +313,17 @@ def get_redis() -> redis.Redis | None:
     return redis_client
 
 
+PIN_MAX_ATTEMPTS = 5
+PIN_ATTEMPT_WINDOW_SECONDS = 600
+PIN_LOCKOUT_SECONDS = 600
+
+
+def get_pin_client_key(request: Request, session_id: str | None) -> str:
+    ip = request.client.host if request.client else "unknown"
+    if session_id:
+        return f"{ip}:{session_id}"
+    return ip
+
 def publish_order_update(tenant_id: int, order_data: dict, table_id: int | None = None) -> None:
     """Publish order update to Redis for WebSocket bridge.
     
@@ -530,6 +543,18 @@ def refresh_access_token(
     )
     
     return response
+
+
+@app.get("/ws-token")
+def get_ws_token(
+    request: Request,
+    current_user: Annotated[models.User, Depends(security.get_current_user)],
+) -> dict:
+    """Return the current access token for WebSocket auth (query param). Cookie may not be sent on WS upgrade from some origins."""
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No access token")
+    return {"access_token": token}
 
 
 @app.get("/users/me")
@@ -965,6 +990,24 @@ def update_tenant_settings(
         )
         tenant.default_language = lang or None
 
+    if tenant_update.timezone is not None:
+        tz_val = (
+            tenant_update.timezone.strip()
+            if isinstance(tenant_update.timezone, str)
+            else None
+        )
+        if tz_val:
+            try:
+                ZoneInfo(tz_val)
+            except (KeyError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid timezone: {tz_val}. Use IANA format (e.g. America/Mazatlan)",
+                )
+            tenant.timezone = tz_val
+        else:
+            tenant.timezone = None
+
     if tenant_update.stripe_secret_key is not None:
         # Only update if a non-empty value is provided
         # Empty string or None means don't change the existing value
@@ -1024,11 +1067,12 @@ async def upload_tenant_logo(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    # Validate content type
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
+    # Validate content type (logo allows SVG in addition to raster images)
+    allowed_logo_types = ALLOWED_IMAGE_TYPES | {"image/svg+xml"}
+    if file.content_type not in allowed_logo_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}",
+            detail=f"Invalid file type. Allowed: {', '.join(sorted(allowed_logo_types))}",
         )
 
     # Read file and check size
@@ -1039,8 +1083,10 @@ async def upload_tenant_logo(
             detail=f"File too large. Max size: {MAX_IMAGE_SIZE // (1024 * 1024)}MB",
         )
 
-    # Optimize image locally
-    contents = optimize_image(contents, file.content_type)
+    is_svg = file.content_type == "image/svg+xml"
+    if not is_svg:
+        # Optimize raster image locally (SVG is stored as-is)
+        contents = optimize_image(contents, file.content_type)
 
     # Create tenant logo directory
     tenant_dir = UPLOADS_DIR / str(current_user.tenant_id) / "logo"
@@ -1053,8 +1099,11 @@ async def upload_tenant_logo(
             old_path.unlink()
 
     # Generate unique filename
-    ext = Path(file.filename or "logo.jpg").suffix.lower()
-    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".avif"]:
+    ext = Path(file.filename or ("logo.svg" if is_svg else "logo.jpg")).suffix.lower()
+    if is_svg:
+        if ext != ".svg":
+            ext = ".svg"
+    elif ext not in [".jpg", ".jpeg", ".png", ".webp", ".avif"]:
         ext = ".jpg"
     new_filename = f"{uuid4()}{ext}"
 
@@ -1973,13 +2022,29 @@ def delete_tenant_product(
 def list_floors(
     current_user: Annotated[models.User, Depends(require_permission(Permission.FLOOR_READ))],
     session: Session = Depends(get_session),
-) -> list[models.Floor]:
-    """List all floors for this tenant."""
-    return session.exec(
+) -> list[dict]:
+    """List all floors for this tenant, including default waiter info."""
+    floors = session.exec(
         select(models.Floor)
         .where(models.Floor.tenant_id == current_user.tenant_id)
         .order_by(models.Floor.sort_order, models.Floor.name)
     ).all()
+
+    # Collect waiter IDs to resolve names in one query
+    waiter_ids = {f.default_waiter_id for f in floors if f.default_waiter_id}
+    waiter_map: dict[int, str] = {}
+    if waiter_ids:
+        waiters = session.exec(
+            select(models.User).where(models.User.id.in_(waiter_ids))
+        ).all()
+        waiter_map = {w.id: (w.full_name or w.email) for w in waiters}
+
+    result = []
+    for f in floors:
+        d = f.model_dump()
+        d["default_waiter_name"] = waiter_map.get(f.default_waiter_id) if f.default_waiter_id else None
+        result.append(d)
+    return result
 
 
 @app.post("/floors")
@@ -2030,6 +2095,20 @@ def update_floor(
         floor.name = floor_update.name
     if floor_update.sort_order is not None:
         floor.sort_order = floor_update.sort_order
+    if floor_update.default_waiter_id is not None:
+        if floor_update.default_waiter_id == 0:
+            floor.default_waiter_id = None
+        else:
+            waiter = session.exec(
+                select(models.User).where(
+                    models.User.id == floor_update.default_waiter_id,
+                    models.User.tenant_id == current_user.tenant_id,
+                    models.User.role == models.UserRole.waiter,
+                )
+            ).first()
+            if not waiter:
+                raise HTTPException(status_code=400, detail="Waiter not found")
+            floor.default_waiter_id = waiter.id
 
     session.add(floor)
     session.commit()
@@ -2059,6 +2138,55 @@ def delete_floor(
     return {"status": "deleted", "id": floor_id}
 
 
+@app.put("/floors/{floor_id}/assign-waiter")
+def assign_waiter_to_floor(
+    floor_id: int,
+    body: dict,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Assign a default waiter to a floor. Send waiter_id=null to unassign."""
+    floor = session.exec(
+        select(models.Floor).where(
+            models.Floor.id == floor_id,
+            models.Floor.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not floor:
+        raise HTTPException(status_code=404, detail="Floor not found")
+
+    waiter_id = body.get("waiter_id")
+    if waiter_id is not None:
+        waiter = session.exec(
+            select(models.User).where(
+                models.User.id == waiter_id,
+                models.User.tenant_id == current_user.tenant_id,
+                models.User.role == models.UserRole.waiter,
+            )
+        ).first()
+        if not waiter:
+            raise HTTPException(status_code=400, detail="Waiter not found or not a waiter role")
+        floor.default_waiter_id = waiter.id
+    else:
+        floor.default_waiter_id = None
+
+    session.add(floor)
+    session.commit()
+    session.refresh(floor)
+
+    # Resolve waiter name for response
+    waiter_name = None
+    if floor.default_waiter_id:
+        w = session.get(models.User, floor.default_waiter_id)
+        waiter_name = w.full_name or w.email if w else None
+
+    return {
+        "floor_id": floor.id,
+        "default_waiter_id": floor.default_waiter_id,
+        "default_waiter_name": waiter_name,
+    }
+
+
 # ============ TABLES ============
 
 
@@ -2066,10 +2194,47 @@ def delete_floor(
 def list_tables(
     current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_READ))],
     session: Session = Depends(get_session),
-) -> list[models.Table]:
-    return session.exec(
+) -> list[dict]:
+    tables = session.exec(
         select(models.Table).where(models.Table.tenant_id == current_user.tenant_id)
     ).all()
+
+    # Resolve assigned waiter names (table-level and floor-level fallback)
+    waiter_ids = set()
+    floor_ids = set()
+    for t in tables:
+        if t.assigned_waiter_id:
+            waiter_ids.add(t.assigned_waiter_id)
+        if t.floor_id:
+            floor_ids.add(t.floor_id)
+
+    # Get floors for fallback waiter
+    floor_waiter_map: dict[int, int | None] = {}
+    if floor_ids:
+        floors = session.exec(
+            select(models.Floor).where(models.Floor.id.in_(floor_ids))
+        ).all()
+        for f in floors:
+            floor_waiter_map[f.id] = f.default_waiter_id
+            if f.default_waiter_id:
+                waiter_ids.add(f.default_waiter_id)
+
+    waiter_map: dict[int, str] = {}
+    if waiter_ids:
+        waiters = session.exec(
+            select(models.User).where(models.User.id.in_(waiter_ids))
+        ).all()
+        waiter_map = {w.id: (w.full_name or w.email) for w in waiters}
+
+    result = []
+    for t in tables:
+        d = t.model_dump()
+        effective_waiter_id = t.assigned_waiter_id or floor_waiter_map.get(t.floor_id)
+        d["assigned_waiter_name"] = waiter_map.get(t.assigned_waiter_id) if t.assigned_waiter_id else None
+        d["effective_waiter_id"] = effective_waiter_id
+        d["effective_waiter_name"] = waiter_map.get(effective_waiter_id) if effective_waiter_id else None
+        result.append(d)
+    return result
 
 
 @app.get("/tables/with-status")
@@ -2077,22 +2242,66 @@ def list_tables_with_status(
     current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_READ))],
     session: Session = Depends(get_session),
 ) -> list[dict]:
-    """List tables with computed status based on active orders."""
+    """List tables with computed status: available, reserved, or occupied."""
     tables = session.exec(
         select(models.Table).where(models.Table.tenant_id == current_user.tenant_id)
     ).all()
+    today_utc = datetime.now(timezone.utc).date()
+
+    # Resolve waiter assignments
+    waiter_ids = set()
+    floor_ids = set()
+    for t in tables:
+        if t.assigned_waiter_id:
+            waiter_ids.add(t.assigned_waiter_id)
+        if t.floor_id:
+            floor_ids.add(t.floor_id)
+
+    floor_waiter_map: dict[int, int | None] = {}
+    if floor_ids:
+        floors = session.exec(
+            select(models.Floor).where(models.Floor.id.in_(floor_ids))
+        ).all()
+        for f in floors:
+            floor_waiter_map[f.id] = f.default_waiter_id
+            if f.default_waiter_id:
+                waiter_ids.add(f.default_waiter_id)
+
+    waiter_map: dict[int, str] = {}
+    if waiter_ids:
+        waiters = session.exec(
+            select(models.User).where(models.User.id.in_(waiter_ids))
+        ).all()
+        waiter_map = {w.id: (w.full_name or w.email) for w in waiters}
 
     result = []
     for table in tables:
-        # Check for active orders (pending, preparing, ready)
+        # Occupied: active order (pending, preparing, ready) or reservation seated at this table
         active_order = session.exec(
             select(models.Order).where(
                 models.Order.table_id == table.id,
                 models.Order.status.in_(["pending", "preparing", "ready"]),
             )
         ).first()
-
-        status = "occupied" if active_order else "available"
+        seated_here = session.exec(
+            select(models.Reservation).where(
+                models.Reservation.table_id == table.id,
+                models.Reservation.status == models.ReservationStatus.seated,
+            )
+        ).first()
+        if active_order or seated_here:
+            status = "occupied"
+        else:
+            # Reserved: a booked reservation is assigned to this table (date >= today)
+            reserved_here = session.exec(
+                select(models.Reservation).where(
+                    models.Reservation.table_id == table.id,
+                    models.Reservation.status == models.ReservationStatus.booked,
+                    models.Reservation.reservation_date >= today_utc,
+                )
+            ).first()
+            status = "reserved" if reserved_here else "available"
+        effective_waiter_id = table.assigned_waiter_id or floor_waiter_map.get(table.floor_id)
 
         result.append(
             {
@@ -2109,6 +2318,10 @@ def list_tables_with_status(
                 "height": table.height,
                 "seat_count": table.seat_count,
                 "status": status,
+                "assigned_waiter_id": table.assigned_waiter_id,
+                "assigned_waiter_name": waiter_map.get(table.assigned_waiter_id) if table.assigned_waiter_id else None,
+                "effective_waiter_id": effective_waiter_id,
+                "effective_waiter_name": waiter_map.get(effective_waiter_id) if effective_waiter_id else None,
             }
         )
 
@@ -2197,6 +2410,409 @@ def delete_table(
     return {"status": "deleted", "id": table_id}
 
 
+# ============ RESERVATIONS ============
+
+
+def _parse_reservation_date(s: str) -> date:
+    """Parse YYYY-MM-DD to date. Accepts full ISO datetime strings (takes first 10 chars)."""
+    s = s.strip()
+    if len(s) < 10:
+        raise ValueError(f"Invalid date format: {s!r}. Use YYYY-MM-DD.")
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d").date()
+    except ValueError as e:
+        raise ValueError(f"Invalid date format: {s[:10]!r}. Use YYYY-MM-DD.") from e
+
+
+def _parse_reservation_time(s: str) -> time:
+    """Parse HH:MM or HH:MM:SS to time. Accepts longer strings (takes first 8 chars for HH:MM:SS)."""
+    s = s.strip()
+    if len(s) < 5:
+        raise ValueError(f"Invalid time format: {s!r}. Use HH:MM or HH:MM:SS.")
+    try:
+        if len(s) <= 5:
+            return datetime.strptime(s[:5], "%H:%M").time()
+        return datetime.strptime(s[:8], "%H:%M:%S").time()
+    except ValueError as e:
+        raise ValueError(f"Invalid time format: {s[:8]!r}. Use HH:MM or HH:MM:SS.") from e
+
+
+def _reservation_to_dict(r: models.Reservation, session: Session | None = None) -> dict:
+    """Serialize reservation for JSON (date/time as ISO strings). Includes table_name when table_id set if session provided."""
+    out = {
+        "id": r.id,
+        "tenant_id": r.tenant_id,
+        "customer_name": r.customer_name,
+        "customer_phone": r.customer_phone,
+        "reservation_date": r.reservation_date.isoformat() if r.reservation_date else None,
+        "reservation_time": r.reservation_time.strftime("%H:%M") if r.reservation_time else None,
+        "party_size": r.party_size,
+        "status": r.status.value,
+        "table_id": r.table_id,
+        "token": r.token,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+    }
+    if session and r.table_id is not None:
+        table = session.get(models.Table, r.table_id)
+        out["table_name"] = table.name if table else None
+    else:
+        out["table_name"] = None
+    return out
+
+
+@app.post("/reservations")
+def create_reservation(
+    body: models.ReservationCreate,
+    current_user: Annotated[models.User | None, Depends(security.get_current_user_optional)],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Create a reservation. Authenticated: tenant from user. Public: tenant_id required in body."""
+    if current_user:
+        tenant_id = current_user.tenant_id
+        data = body
+    else:
+        if body.tenant_id is None:
+            raise HTTPException(status_code=400, detail="tenant_id required for public booking")
+        tenant_id = body.tenant_id
+        data = body
+    # Validate tenant exists
+    tenant = session.get(models.Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    try:
+        res_date = _parse_reservation_date(data.reservation_date)
+        res_time = _parse_reservation_time(data.reservation_time)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    # Reject past date/time (use business timezone if configured, else UTC)
+    tz = ZoneInfo(tenant.timezone) if tenant.timezone else timezone.utc
+    now_local = datetime.now(tz)
+    if res_date < now_local.date():
+        raise HTTPException(status_code=400, detail="Reservation date must be today or in the future")
+    if res_date == now_local.date():
+        if res_time <= now_local.time():
+            raise HTTPException(status_code=400, detail="Reservation time must be in the future")
+    token_str = str(uuid4()) if not current_user else None
+    reservation = models.Reservation(
+        tenant_id=tenant_id,
+        customer_name=data.customer_name,
+        customer_phone=data.customer_phone,
+        reservation_date=res_date,
+        reservation_time=res_time,
+        party_size=data.party_size,
+        status=models.ReservationStatus.booked,
+        token=token_str,
+    )
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
+@app.get("/reservations")
+def list_reservations(
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_READ))],
+    session: Session = Depends(get_session),
+    reservation_date: str | None = Query(None, description="Filter by date YYYY-MM-DD"),
+    status: str | None = Query(None, description="Filter by status"),
+    phone: str | None = Query(None, description="Search by phone (partial)"),
+) -> list[dict]:
+    """List reservations for the tenant. Staff only."""
+    q = select(models.Reservation).where(models.Reservation.tenant_id == current_user.tenant_id)
+    if reservation_date:
+        try:
+            d = _parse_reservation_date(reservation_date)
+            q = q.where(models.Reservation.reservation_date == d)
+        except ValueError:
+            pass
+    if status:
+        q = q.where(models.Reservation.status == status)
+    if phone and phone.strip():
+        q = q.where(models.Reservation.customer_phone.contains(phone.strip()))
+    q = q.order_by(models.Reservation.reservation_date, models.Reservation.reservation_time)
+    reservations = session.exec(q).all()
+    return [_reservation_to_dict(r, session) for r in reservations]
+
+
+@app.get("/reservations/next-available")
+def get_next_available_reservation_time(
+    tenant_id: int = Query(...),
+    date_str: str = Query(..., alias="date"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Public: find the next available hourly slot for a reservation."""
+    tenant = session.get(models.Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tz = ZoneInfo(tenant.timezone) if tenant.timezone else timezone.utc
+    now_local = datetime.now(tz)
+
+    # Parse opening hours
+    opening_hours = {}
+    if tenant.opening_hours:
+        try:
+            opening_hours = json.loads(tenant.opening_hours)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+    # Try the requested date and up to 7 more days
+    try:
+        check_date = _parse_reservation_date(date_str)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    for day_offset in range(8):
+        d = check_date + timedelta(days=day_offset)
+        day_key = day_names[d.weekday()]
+        day_hours = opening_hours.get(day_key, {})
+
+        if day_hours.get("closed", False) or not day_hours.get("open") or not day_hours.get("close"):
+            continue
+
+        try:
+            open_h, open_m = map(int, day_hours["open"].split(":"))
+            close_h, close_m = map(int, day_hours["close"].split(":"))
+        except (ValueError, AttributeError):
+            continue
+
+        # Generate hourly slots from open to close-1h
+        slot_hour = open_h
+        while slot_hour < close_h:
+            slot_time = time(slot_hour, 0)
+
+            # Skip past slots if today
+            if d == now_local.date() and slot_time <= now_local.time():
+                slot_hour += 1
+                continue
+
+            # Check for existing reservations at this slot
+            existing = session.exec(
+                select(models.Reservation).where(
+                    models.Reservation.tenant_id == tenant_id,
+                    models.Reservation.reservation_date == d,
+                    models.Reservation.reservation_time == slot_time,
+                    models.Reservation.status.in_(["booked", "seated"]),
+                )
+            ).first()
+
+            if not existing:
+                return {
+                    "date": d.isoformat(),
+                    "time": slot_time.strftime("%H:%M"),
+                }
+
+            slot_hour += 1
+
+    raise HTTPException(status_code=404, detail="No available time slots found")
+
+
+@app.get("/reservations/by-token")
+def get_reservation_by_token(
+    token: str = Query(..., description="Reservation token from booking confirmation"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Public: get one reservation by token (for view/cancel)."""
+    reservation = session.exec(
+        select(models.Reservation).where(models.Reservation.token == token)
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    return _reservation_to_dict(reservation, session)
+
+
+@app.get("/reservations/{reservation_id}")
+def get_reservation(
+    reservation_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_READ))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Get one reservation by id. Staff only."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    return _reservation_to_dict(reservation, session)
+
+
+@app.put("/reservations/{reservation_id}")
+def update_reservation(
+    reservation_id: int,
+    body: models.ReservationUpdate,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Update reservation. Only when status is booked. Staff only."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.status != models.ReservationStatus.booked:
+        raise HTTPException(status_code=400, detail="Can only edit reservations that are booked")
+    if body.customer_name is not None:
+        reservation.customer_name = body.customer_name
+    if body.customer_phone is not None:
+        reservation.customer_phone = body.customer_phone
+    if body.reservation_date is not None:
+        reservation.reservation_date = _parse_reservation_date(body.reservation_date)
+    if body.reservation_time is not None:
+        reservation.reservation_time = _parse_reservation_time(body.reservation_time)
+    if body.party_size is not None:
+        reservation.party_size = body.party_size
+    reservation.updated_at = datetime.now(timezone.utc)
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
+@app.put("/reservations/{reservation_id}/status")
+def update_reservation_status(
+    reservation_id: int,
+    body: models.ReservationStatusUpdate,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Update reservation status (e.g. cancel, seat, finish). Staff only."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if body.status == models.ReservationStatus.cancelled:
+        reservation.status = models.ReservationStatus.cancelled
+        reservation.table_id = None
+    elif body.status == models.ReservationStatus.finished:
+        reservation.status = models.ReservationStatus.finished
+        reservation.table_id = None
+    else:
+        reservation.status = body.status
+    reservation.updated_at = datetime.now(timezone.utc)
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
+@app.put("/reservations/{reservation_id}/seat")
+def seat_reservation(
+    reservation_id: int,
+    body: models.ReservationSeat,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Assign table to reservation (seat the party). Staff only."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.status != models.ReservationStatus.booked:
+        raise HTTPException(status_code=400, detail="Reservation must be booked to seat")
+    table = session.exec(
+        select(models.Table).where(
+            models.Table.id == body.table_id,
+            models.Table.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    if table.seat_count < reservation.party_size:
+        raise HTTPException(status_code=400, detail="Table capacity is less than party size")
+    # Check table not already occupied or reserved by another
+    active_order = session.exec(
+        select(models.Order).where(
+            models.Order.table_id == table.id,
+            models.Order.status.in_(["pending", "preparing", "ready"]),
+        )
+    ).first()
+    if active_order:
+        raise HTTPException(status_code=400, detail="Table is already occupied")
+    other_reserved = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.table_id == table.id,
+            models.Reservation.status == models.ReservationStatus.booked,
+            models.Reservation.id != reservation_id,
+        )
+    ).first()
+    if other_reserved:
+        raise HTTPException(status_code=400, detail="Table is already reserved")
+    reservation.table_id = body.table_id
+    reservation.status = models.ReservationStatus.seated
+    reservation.updated_at = datetime.now(timezone.utc)
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
+@app.put("/reservations/{reservation_id}/finish")
+def finish_reservation(
+    reservation_id: int,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.RESERVATION_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Clear table assignment and mark reservation finished. Staff only."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    reservation.status = models.ReservationStatus.finished
+    reservation.table_id = None
+    reservation.updated_at = datetime.now(timezone.utc)
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
+@app.put("/reservations/{reservation_id}/cancel")
+def cancel_reservation_public(
+    reservation_id: int,
+    token: str = Query(..., description="Reservation token"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Public: cancel reservation with token."""
+    reservation = session.exec(
+        select(models.Reservation).where(
+            models.Reservation.id == reservation_id,
+            models.Reservation.token == token,
+        )
+    ).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.status == models.ReservationStatus.cancelled:
+        return _reservation_to_dict(reservation, session)
+    reservation.status = models.ReservationStatus.cancelled
+    reservation.table_id = None
+    reservation.updated_at = datetime.now(timezone.utc)
+    session.add(reservation)
+    session.commit()
+    session.refresh(reservation)
+    return _reservation_to_dict(reservation, session)
+
+
 # ============ TABLE SESSION MANAGEMENT ============
 
 
@@ -2210,7 +2826,7 @@ def activate_table(
     Activate a table for ordering.
     Generates a new PIN and creates an empty order for the table.
     """
-    import random
+    import secrets
 
     table = session.exec(
         select(models.Table).where(
@@ -2222,8 +2838,8 @@ def activate_table(
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
 
-    # Generate a new 4-digit PIN
-    pin = str(random.randint(1000, 9999))
+    # Generate a cryptographically random 4-digit PIN
+    pin = str(secrets.randbelow(9000) + 1000)
 
     # Create a new empty order for this table
     new_order = models.Order(
@@ -2282,6 +2898,13 @@ def close_table(
     session.commit()
     session.refresh(table)
 
+    # Notify connected customers via WebSocket that the table has been closed
+    publish_order_update(
+        tenant_id=current_user.tenant_id,
+        order_data={"type": "table_closed", "table_id": table_id},
+        table_id=table_id,
+    )
+
     return {
         "id": table.id,
         "name": table.name,
@@ -2300,7 +2923,7 @@ def regenerate_table_pin(
     Generate a new PIN for an active table without closing it.
     Useful when staff suspects PIN has been shared.
     """
-    import random
+    import secrets
 
     table = session.exec(
         select(models.Table).where(
@@ -2315,8 +2938,8 @@ def regenerate_table_pin(
     if not table.is_active:
         raise HTTPException(status_code=400, detail="Table is not active. Activate it first.")
 
-    # Generate a new 4-digit PIN
-    pin = str(random.randint(1000, 9999))
+    # Generate a cryptographically random 4-digit PIN
+    pin = str(secrets.randbelow(9000) + 1000)
     table.order_pin = pin
 
     session.commit()
@@ -2327,6 +2950,55 @@ def regenerate_table_pin(
         "name": table.name,
         "pin": pin,
         "is_active": True,
+    }
+
+
+@app.put("/tables/{table_id}/assign-waiter")
+def assign_waiter_to_table(
+    table_id: int,
+    body: dict,
+    current_user: Annotated[models.User, Depends(require_permission(Permission.TABLE_WRITE))],
+    session: Session = Depends(get_session),
+) -> dict:
+    """Assign a waiter to a specific table. Send waiter_id=null to unassign."""
+    table = session.exec(
+        select(models.Table).where(
+            models.Table.id == table_id,
+            models.Table.tenant_id == current_user.tenant_id,
+        )
+    ).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    waiter_id = body.get("waiter_id")
+    if waiter_id is not None:
+        waiter = session.exec(
+            select(models.User).where(
+                models.User.id == waiter_id,
+                models.User.tenant_id == current_user.tenant_id,
+                models.User.role == models.UserRole.waiter,
+            )
+        ).first()
+        if not waiter:
+            raise HTTPException(status_code=400, detail="Waiter not found or not a waiter role")
+        table.assigned_waiter_id = waiter.id
+    else:
+        table.assigned_waiter_id = None
+
+    session.add(table)
+    session.commit()
+    session.refresh(table)
+
+    # Resolve waiter name for response
+    waiter_name = None
+    if table.assigned_waiter_id:
+        w = session.get(models.User, table.assigned_waiter_id)
+        waiter_name = w.full_name or w.email if w else None
+
+    return {
+        "table_id": table.id,
+        "assigned_waiter_id": table.assigned_waiter_id,
+        "assigned_waiter_name": waiter_name,
     }
 
 
@@ -2394,7 +3066,32 @@ def get_menu(
             self.order_pin = order_pin
             self.active_order_id = active_order_id
 
-    table = TableData(table_row[0], table_row[1], table_row[2], table_row[3], table_row[4], table_row[5], table_row[6])
+    table = TableData(
+        table_row[0],
+        table_row[1],
+        table_row[2],
+        table_row[3],
+        table_row[4],
+        table_row[5],
+        table_row[6],
+    )
+
+    if not table.is_active:
+        # Return tenant/table info so the frontend can show a branded "table closed" page
+        tenant = session.exec(
+            select(models.Tenant).where(models.Tenant.id == table.tenant_id)
+        ).first()
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "TABLE_CLOSED",
+                "message": "This table is currently closed.",
+                "table_name": table.name,
+                "tenant_name": tenant.name if tenant else None,
+                "tenant_logo": tenant.logo_filename if tenant else None,
+                "tenant_id": table.tenant_id,
+            },
+        )
 
     # Get products from TenantProduct (new catalog system) and Product (legacy)
     tenant_products = session.exec(
@@ -2791,35 +3488,53 @@ def get_current_order(
 
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    
-    # If session_id provided, look for order with matching session_id
-    if session_id:
-        potential_orders = session.exec(
-            select(models.Order).where(
-                models.Order.table_id == table.id,
-                models.Order.session_id == session_id,
-                models.Order.status != models.OrderStatus.paid
-            ).order_by(models.Order.created_at.desc())
-        ).all()
-    else:
-        # Backward compatibility: find any unpaid order (old behavior)
-        potential_orders = session.exec(
-            select(models.Order).where(
-                models.Order.table_id == table.id,
-                models.Order.status != models.OrderStatus.paid
-            ).order_by(models.Order.created_at.desc())
-        ).all()
-    
-    # Filter out orders with payment confirmation in notes
-    # Also explicitly check status to ensure we don't return paid orders
+
     active_order = None
-    for order in potential_orders:
-        # Explicitly check if order is paid (defensive check)
-        if order.status == models.OrderStatus.paid:
-            continue
-        if "[PAID:" not in (order.notes or ""):
-            active_order = order
-            break
+
+    # Prefer the table's shared active order (created when staff activates the table).
+    # This is the canonical order for the PIN-based shared-order model.
+    if table.active_order_id:
+        shared_order = session.get(models.Order, table.active_order_id)
+        if (
+            shared_order
+            and shared_order.status != models.OrderStatus.paid
+            and "[PAID:" not in (shared_order.notes or "")
+        ):
+            active_order = shared_order
+
+    # Fallback: search by session_id or any unpaid order (backward compatibility
+    # for tables activated before the shared-order model was introduced).
+    if not active_order:
+        if session_id:
+            potential_orders = session.exec(
+                select(models.Order).where(
+                    models.Order.table_id == table.id,
+                    models.Order.session_id == session_id,
+                    models.Order.status != models.OrderStatus.paid
+                ).order_by(models.Order.created_at.desc())
+            ).all()
+        else:
+            potential_orders = session.exec(
+                select(models.Order).where(
+                    models.Order.table_id == table.id,
+                    models.Order.status != models.OrderStatus.paid
+                ).order_by(models.Order.created_at.desc())
+            ).all()
+
+        for order in potential_orders:
+            if order.status == models.OrderStatus.paid:
+                continue
+            if "[PAID:" not in (order.notes or ""):
+                active_order = order
+                break
+
+    # Table shared order: when no order matched session_id, use table's active order so customer sees current order
+    if not active_order and table.active_order_id:
+        active_order = session.get(models.Order, table.active_order_id)
+        if active_order and active_order.status == models.OrderStatus.paid:
+            active_order = None
+        if active_order and "[PAID:" in (active_order.notes or ""):
+            active_order = None
 
     if not active_order:
         return {"order": None}
@@ -2862,6 +3577,57 @@ def get_current_order(
     }
 
 
+@app.get("/menu/{table_token}/order-history")
+def get_table_order_history(
+    table_token: str,
+    limit: int = Query(10, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> list[dict]:
+    """Public endpoint - recent paid/completed orders for this table (for customer order history)."""
+    table = session.exec(
+        select(models.Table).where(models.Table.token == table_token)
+    ).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    orders = session.exec(
+        select(models.Order)
+        .where(
+            models.Order.table_id == table.id,
+            models.Order.status.in_([models.OrderStatus.paid, models.OrderStatus.completed]),
+        )
+        .order_by(models.Order.created_at.desc())
+        .limit(limit)
+    ).all()
+
+    result = []
+    for order in orders:
+        items = session.exec(
+            select(models.OrderItem).where(
+                models.OrderItem.order_id == order.id,
+                models.OrderItem.removed_by_customer == False,
+            )
+        ).all()
+        total_cents = sum(item.price_cents * item.quantity for item in items)
+        result.append({
+            "id": order.id,
+            "status": order.status.value,
+            "created_at": order.created_at.isoformat(),
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+            "items": [
+                {
+                    "id": item.id,
+                    "product_name": item.product_name,
+                    "quantity": item.quantity,
+                    "price_cents": item.price_cents,
+                }
+                for item in items
+            ],
+            "total_cents": total_cents,
+        })
+    return result
+
+
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate the distance in meters between two GPS coordinates using Haversine formula."""
     import math
@@ -2882,6 +3648,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 def create_order(
     table_token: str,
     order_data: models.OrderCreate,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> dict:
     """Public endpoint - add items to the table's shared order."""
@@ -2906,6 +3673,26 @@ def create_order(
             detail="Table is not accepting orders. Please ask staff to activate the table."
         )
 
+    # Validate PIN (with rate limiting)
+    redis_conn = get_redis()
+    attempts_key = None
+    lock_key = None
+    if redis_conn:
+        client_key = get_pin_client_key(request, order_data.session_id)
+        attempts_key = f"pin_attempts:{table_token}:{client_key}"
+        lock_key = f"pin_lock:{table_token}:{client_key}"
+        lock_ttl = redis_conn.ttl(lock_key)
+        if lock_ttl and lock_ttl > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many PIN attempts. Try again in {lock_ttl} seconds."
+            )
+    else:
+        logger.warning(
+            "Redis is unavailable -- PIN rate limiting is disabled. "
+            "Brute-force protection will not work until Redis is restored."
+        )
+
     # Validate PIN
     if not order_data.pin:
         raise HTTPException(
@@ -2914,10 +3701,25 @@ def create_order(
         )
     
     if order_data.pin != table.order_pin:
+        if redis_conn and attempts_key and lock_key:
+            attempts = redis_conn.incr(attempts_key)
+            if attempts == 1:
+                redis_conn.expire(attempts_key, PIN_ATTEMPT_WINDOW_SECONDS)
+            if attempts >= PIN_MAX_ATTEMPTS:
+                redis_conn.setex(lock_key, PIN_LOCKOUT_SECONDS, "1")
+                redis_conn.delete(attempts_key)
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Too many PIN attempts. Try again in {PIN_LOCKOUT_SECONDS} seconds."
+                )
         raise HTTPException(
             status_code=403, 
             detail="Invalid PIN. Please check the PIN displayed at your table."
         )
+
+    if redis_conn and attempts_key and lock_key:
+        redis_conn.delete(attempts_key)
+        redis_conn.delete(lock_key)
 
     # ============ GET SHARED ORDER ============
     # Use the table's active order (created when table was activated)
@@ -2934,12 +3736,20 @@ def create_order(
             detail="Active order not found. Please ask staff to reactivate the table."
         )
 
-    # Check order isn't already paid
+    # If the active order is already paid, start a new order for this table (same PIN, no staff action needed)
     if order.status == models.OrderStatus.paid:
-        raise HTTPException(
-            status_code=400, 
-            detail="This order has already been paid. Please ask staff to activate a new session."
+        new_order = models.Order(
+            table_id=table.id,
+            tenant_id=table.tenant_id,
+            status=models.OrderStatus.pending,
+            session_id=None,
         )
+        session.add(new_order)
+        session.flush()
+        table.active_order_id = new_order.id
+        session.add(table)
+        session.flush()
+        order = new_order
 
     print(f"\n{'=' * 60}")
     print(f"[DEBUG] POST /menu/{table_token}/order")
@@ -2983,9 +3793,10 @@ def create_order(
         # Use source indicator if provided, otherwise try TenantProduct first, then legacy Product
         product_name = None
         price_cents = None
-        
+        effective_product_id: int  # Must be Product.id (OrderItem.product_id FK references product.id)
+
         if item.source == "tenant_product":
-            # Explicitly look up TenantProduct
+            # Explicitly look up TenantProduct (menu sends TenantProduct.id as product_id)
             tenant_product = session.exec(
                 select(models.TenantProduct).where(
                     models.TenantProduct.id == item.product_id,
@@ -2996,6 +3807,20 @@ def create_order(
                 raise HTTPException(status_code=400, detail=f"TenantProduct {item.product_id} not found")
             product_name = tenant_product.name
             price_cents = tenant_product.price_cents
+            if tenant_product.product_id is not None:
+                effective_product_id = tenant_product.product_id
+            else:
+                # TenantProduct not yet linked to Product (e.g. catalog-only) - create Product and link
+                new_product = models.Product(
+                    name=tenant_product.name,
+                    price_cents=tenant_product.price_cents,
+                    tenant_id=table.tenant_id,
+                )
+                session.add(new_product)
+                session.flush()
+                effective_product_id = new_product.id
+                tenant_product.product_id = new_product.id
+                session.add(tenant_product)
         elif item.source == "product":
             # Explicitly look up legacy Product
             product = session.exec(
@@ -3008,19 +3833,32 @@ def create_order(
                 raise HTTPException(status_code=400, detail=f"Product {item.product_id} not found")
             product_name = product.name
             price_cents = product.price_cents
+            effective_product_id = product.id
         else:
             # No source specified - try TenantProduct first, then fallback to legacy Product
-            # This maintains backward compatibility
             tenant_product = session.exec(
                 select(models.TenantProduct).where(
                     models.TenantProduct.id == item.product_id,
                     models.TenantProduct.tenant_id == table.tenant_id
                 )
             ).first()
-            
+
             if tenant_product:
                 product_name = tenant_product.name
                 price_cents = tenant_product.price_cents
+                if tenant_product.product_id is not None:
+                    effective_product_id = tenant_product.product_id
+                else:
+                    new_product = models.Product(
+                        name=tenant_product.name,
+                        price_cents=tenant_product.price_cents,
+                        tenant_id=table.tenant_id,
+                    )
+                    session.add(new_product)
+                    session.flush()
+                    effective_product_id = new_product.id
+                    tenant_product.product_id = new_product.id
+                    session.add(tenant_product)
             else:
                 # Fallback to legacy Product table
                 product = session.exec(
@@ -3029,50 +3867,43 @@ def create_order(
                         models.Product.tenant_id == table.tenant_id
                     )
                 ).first()
-                
                 if not product:
                     raise HTTPException(status_code=400, detail=f"Product {item.product_id} not found")
-                
                 product_name = product.name
                 price_cents = product.price_cents
-        
+                effective_product_id = product.id
+
         # Check if this product already exists in the order (only active, non-removed items)
-        # Only merge if the existing item is NOT delivered (to preserve item-level status tracking)
+        # Match by effective_product_id (Product.id) so we merge same product regardless of TenantProduct id
         existing_item = session.exec(
             select(models.OrderItem).where(
                 models.OrderItem.order_id == order.id,
-                models.OrderItem.product_id == item.product_id,
-                models.OrderItem.removed_by_customer == False,  # Only check active items
-                models.OrderItem.status != models.OrderItemStatus.delivered  # Don't merge with delivered items
+                models.OrderItem.product_id == effective_product_id,
+                models.OrderItem.removed_by_customer == False,
+                models.OrderItem.status != models.OrderItemStatus.delivered
             )
         ).first()
 
         if existing_item:
-            # Increment quantity (item is active and not delivered)
             existing_item.quantity += item.quantity
             if item.notes:
                 existing_item.notes = (
                     f"{existing_item.notes or ''}, {item.notes}".strip(", ")
                 )
-            # If this addition is from a flagged location, mark the item
             if location_flagged:
                 existing_item.location_flagged = True
             session.add(existing_item)
         else:
-            # Create new order item with default status
-            # This happens when:
-            # 1. No existing item found, OR
-            # 2. Existing item is delivered (we create a new item to track separately)
             order_item = models.OrderItem(
                 order_id=order.id,
-                product_id=item.product_id,
+                product_id=effective_product_id,
                 product_name=product_name,
                 quantity=item.quantity,
                 price_cents=price_cents,
                 notes=item.notes,
-                status=models.OrderItemStatus.pending,  # New items start as pending
-                added_by_session=order_data.session_id,  # Track which browser added this
-                location_flagged=location_flagged  # Flag if from suspicious location
+                status=models.OrderItemStatus.pending,
+                added_by_session=order_data.session_id,
+                location_flagged=location_flagged
             )
             session.add(order_item)
     
@@ -3112,6 +3943,135 @@ def create_order(
         "order_id": order.id,
         "session_id": order.session_id,
         "customer_name": order.customer_name
+    }
+
+
+# ============ PUBLIC: PAYMENT REQUEST & CALL WAITER ============
+
+
+class PaymentRequest(_BaseModel):
+    payment_method: str  # 'cash', 'card_terminal'
+    message: str | None = None  # Optional message/observation from customer
+
+
+@app.post("/menu/{table_token}/order/{order_id}/request-payment")
+def request_payment(
+    table_token: str,
+    order_id: int,
+    payment_request: PaymentRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    """
+    Public endpoint - customer requests payment via cash or card terminal.
+    Notifies staff via WebSocket so they can come to the table.
+    """
+    table = session.exec(
+        select(models.Table).where(models.Table.token == table_token)
+    ).first()
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    if not table.is_active:
+        raise HTTPException(status_code=403, detail="Table is not active.")
+
+    order = session.get(models.Order, order_id)
+    if not order or order.table_id != table.id:
+        raise HTTPException(status_code=404, detail="Order not found for this table.")
+
+    if order.status == models.OrderStatus.paid:
+        raise HTTPException(status_code=400, detail="Order is already paid.")
+
+    # Store the requested payment method on the order
+    order.payment_method = payment_request.payment_method
+
+    # Append customer message to notes if provided
+    if payment_request.message:
+        order.notes = f"{order.notes or ''}\n[CUSTOMER NOTE] {payment_request.message}".strip()
+
+    session.commit()
+    session.refresh(order)
+
+    # Resolve assigned waiter (table-level, then floor-level fallback)
+    effective_waiter_id = table.assigned_waiter_id
+    effective_waiter_name = None
+    if not effective_waiter_id and table.floor_id:
+        floor = session.get(models.Floor, table.floor_id)
+        if floor:
+            effective_waiter_id = floor.default_waiter_id
+    if effective_waiter_id:
+        waiter = session.get(models.User, effective_waiter_id)
+        if waiter:
+            effective_waiter_name = waiter.full_name or waiter.email
+
+    # Notify staff via WebSocket
+    publish_order_update(table.tenant_id, {
+        "type": "payment_requested",
+        "order_id": order.id,
+        "table_name": table.name,
+        "table_id": table.id,
+        "payment_method": payment_request.payment_method,
+        "message": payment_request.message,
+        "assigned_waiter_id": effective_waiter_id,
+        "assigned_waiter_name": effective_waiter_name,
+    }, table_id=table.id)
+
+    return {
+        "status": "payment_requested",
+        "order_id": order.id,
+        "payment_method": payment_request.payment_method,
+    }
+
+
+class CallWaiterRequest(_BaseModel):
+    message: str | None = None  # Optional message/reason
+
+
+@app.post("/menu/{table_token}/call-waiter")
+def call_waiter(
+    table_token: str,
+    waiter_request: CallWaiterRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    """
+    Public endpoint - customer requests a waiter to come to the table.
+    Sends a real-time notification to staff via WebSocket.
+    """
+    table = session.exec(
+        select(models.Table).where(models.Table.token == table_token)
+    ).first()
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    if not table.is_active:
+        raise HTTPException(status_code=403, detail="Table is not active.")
+
+    # Resolve assigned waiter (table-level, then floor-level fallback)
+    effective_waiter_id = table.assigned_waiter_id
+    effective_waiter_name = None
+    if not effective_waiter_id and table.floor_id:
+        floor = session.get(models.Floor, table.floor_id)
+        if floor:
+            effective_waiter_id = floor.default_waiter_id
+    if effective_waiter_id:
+        waiter = session.get(models.User, effective_waiter_id)
+        if waiter:
+            effective_waiter_name = waiter.full_name or waiter.email
+
+    # Notify staff via WebSocket
+    publish_order_update(table.tenant_id, {
+        "type": "call_waiter",
+        "table_name": table.name,
+        "table_id": table.id,
+        "message": waiter_request.message,
+        "assigned_waiter_id": effective_waiter_id,
+        "assigned_waiter_name": effective_waiter_name,
+    }, table_id=table.id)
+
+    return {
+        "status": "waiter_called",
+        "table_name": table.name,
     }
 
 

@@ -2,7 +2,7 @@ import { Component, inject, signal, OnInit, OnDestroy, ElementRef, ViewChild } f
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LowerCasePipe } from '@angular/common';
-import { ApiService, Floor, CanvasTable } from '../services/api.service';
+import { ApiService, Floor, CanvasTable, User } from '../services/api.service';
 import { SidebarComponent } from '../shared/sidebar.component';
 import { ConfirmationModalComponent } from '../shared/confirmation-modal.component';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -246,8 +246,8 @@ interface TableShape {
                           cx="0" cy="0"
                           [attr.rx]="(table.width || 80) / 2"
                           [attr.ry]="(table.height || 80) / 2"
-                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : 'url(#woodGrain)'"
-                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : '#8b7355'"
+                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : table.status === 'reserved' ? '#fef3c7' : 'url(#woodGrain)'"
+                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : table.status === 'reserved' ? '#d97706' : '#8b7355'"
                           stroke-width="2"
                         />
                       } @else if (table.shape === 'oval') {
@@ -255,8 +255,8 @@ interface TableShape {
                           cx="0" cy="0"
                           [attr.rx]="(table.width || 120) / 2"
                           [attr.ry]="(table.height || 70) / 2"
-                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : 'url(#woodGrain)'"
-                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : '#8b7355'"
+                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : table.status === 'reserved' ? '#fef3c7' : 'url(#woodGrain)'"
+                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : table.status === 'reserved' ? '#d97706' : '#8b7355'"
                           stroke-width="2"
                         />
                       } @else if (table.shape === 'booth') {
@@ -267,8 +267,8 @@ interface TableShape {
                           [attr.width]="table.width || 100"
                           [attr.height]="table.height || 80"
                           rx="4"
-                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : 'url(#woodGrain)'"
-                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : '#8b7355'"
+                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : table.status === 'reserved' ? '#fef3c7' : 'url(#woodGrain)'"
+                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : table.status === 'reserved' ? '#d97706' : '#8b7355'"
                           stroke-width="2"
                         />
                         <!-- Booth bench backs (decorative lines) -->
@@ -298,8 +298,8 @@ interface TableShape {
                           [attr.width]="table.width || 160"
                           [attr.height]="table.height || 40"
                           rx="4"
-                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : '#5c4033'"
-                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : '#3d2817'"
+                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : table.status === 'reserved' ? '#fef3c7' : '#5c4033'"
+                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : table.status === 'reserved' ? '#d97706' : '#3d2817'"
                           stroke-width="2"
                         />
                         <!-- Bar top edge highlight -->
@@ -320,8 +320,8 @@ interface TableShape {
                           [attr.width]="table.width || 100"
                           [attr.height]="table.height || 70"
                           rx="4"
-                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : 'url(#woodGrain)'"
-                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : '#8b7355'"
+                          [attr.fill]="table.status === 'occupied' ? 'url(#occupiedPattern)' : table.status === 'reserved' ? '#fef3c7' : 'url(#woodGrain)'"
+                          [attr.stroke]="table.status === 'occupied' ? '#16a34a' : table.status === 'reserved' ? '#d97706' : '#8b7355'"
                           stroke-width="2"
                         />
                       }
@@ -332,11 +332,20 @@ interface TableShape {
                       class="table-number"
                       text-anchor="middle"
                       dominant-baseline="middle"
-                      [attr.fill]="table.status === 'occupied' ? 'white' : '#4a3728'"
+                      [attr.fill]="table.status === 'occupied' ? 'white' : table.status === 'reserved' ? '#92400e' : '#4a3728'"
                       font-weight="600"
                     >
                       {{ getTableNumber(table) }}
                     </text>
+                    <!-- Waiter initials badge -->
+                    @if (getWaiterInitials(table)) {
+                      <g [attr.transform]="'translate(' + ((table.width || 100) / 2 - 10) + ',' + (-((table.height || 70) / 2) - 4) + ')'">
+                        <circle r="10" [attr.fill]="getWaiterColor(table)" opacity="0.9"/>
+                        <text text-anchor="middle" dominant-baseline="middle" fill="white" font-size="9" font-weight="600">
+                          {{ getWaiterInitials(table) }}
+                        </text>
+                      </g>
+                    }
                   </g>
                 }
               </svg>
@@ -354,8 +363,8 @@ interface TableShape {
               <div class="panel-header">
                 <div class="panel-title-row">
                   <h3>{{ selectedTable()?.name }}</h3>
-                  <div class="status-badge" [class.occupied]="selectedTable()?.status === 'occupied'">
-                    {{ selectedTable()?.status === 'occupied' ? ('TABLES.OCCUPIED' | translate) : ('TABLES.AVAILABLE' | translate) }}
+                  <div class="status-badge" [class.occupied]="selectedTable()?.status === 'occupied'" [class.reserved]="selectedTable()?.status === 'reserved'">
+                    {{ selectedTable()?.status === 'occupied' ? ('TABLES.OCCUPIED' | translate) : selectedTable()?.status === 'reserved' ? ('TABLES.RESERVED' | translate) : ('TABLES.AVAILABLE' | translate) }}
                   </div>
                 </div>
                 <button class="close-btn" (click)="selectedTable.set(null)">
@@ -374,6 +383,15 @@ interface TableShape {
                     <label>{{ 'TABLES.SEATS' | translate }}</label>
                     <input type="number" min="1" max="20" [(ngModel)]="selectedTableSeats" (blur)="updateSelectedTable()">
                   </div>
+                </div>
+                <div class="form-group">
+                  <label>{{ 'TABLES.ASSIGNED_WAITER' | translate }}</label>
+                  <select class="panel-select" (change)="onCanvasWaiterAssign($event)">
+                    <option value="" [selected]="!selectedTable()?.assigned_waiter_id">{{ 'TABLES.UNASSIGNED' | translate }}</option>
+                    @for (w of waiters(); track w.id) {
+                      <option [value]="w.id" [selected]="selectedTable()?.assigned_waiter_id === w.id">{{ w.full_name || w.email }}</option>
+                    }
+                  </select>
                 </div>
                 <button class="delete-btn" (click)="deleteSelectedTable()">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -794,6 +812,11 @@ interface TableShape {
       color: var(--color-success);
     }
 
+    .status-badge.reserved {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
     .close-btn {
       padding: var(--space-2);
       background: transparent;
@@ -862,6 +885,16 @@ interface TableShape {
       transition: all 0.15s ease;
     }
     .delete-btn:hover { background: rgba(220, 38, 38, 0.15); }
+
+    .panel-select {
+      width: 100%;
+      padding: var(--space-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.8125rem;
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
 
     /* Modal - Mobile-first */
     .modal-overlay {
@@ -1147,6 +1180,7 @@ export class TablesCanvasComponent implements OnInit, OnDestroy {
   selectedTableSeats = 4;
   showAddTableModal = false;
   selectedShape: TableShape | null = null;
+  waiters = signal<User[]>([]);
 
   // Confirmation Modal State
   confirmationModal = signal<{
@@ -1199,6 +1233,10 @@ export class TablesCanvasComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadData();
+    this.api.getWaiters().subscribe({
+      next: w => this.waiters.set(w),
+      error: () => {}
+    });
     // Mouse event listeners
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('mouseup', this.onMouseUp);
@@ -1322,6 +1360,40 @@ export class TablesCanvasComponent implements OnInit, OnDestroy {
     // Extract number from name like "Table 5" -> "5"
     const match = table.name.match(/\d+/);
     return match ? match[0] : table.name;
+  }
+
+  // Waiter assignment helpers
+  private waiterColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
+
+  getWaiterInitials(table: CanvasTable): string | null {
+    const name = table.effective_waiter_name || table.assigned_waiter_name;
+    if (!name) return null;
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  getWaiterColor(table: CanvasTable): string {
+    const id = table.effective_waiter_id || table.assigned_waiter_id || 0;
+    return this.waiterColors[id % this.waiterColors.length];
+  }
+
+  onCanvasWaiterAssign(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const waiterId = select.value ? Number(select.value) : null;
+    const table = this.selectedTable();
+    if (!table?.id) return;
+    this.api.assignWaiterToTable(table.id, waiterId).subscribe({
+      next: (res: any) => {
+        this.tables.update(tables => tables.map(t =>
+          t.id === table.id
+            ? { ...t, assigned_waiter_id: res.assigned_waiter_id, assigned_waiter_name: res.assigned_waiter_name, effective_waiter_id: res.assigned_waiter_id, effective_waiter_name: res.assigned_waiter_name }
+            : t
+        ));
+        this.selectedTable.update(st => st ? { ...st, assigned_waiter_id: res.assigned_waiter_id, assigned_waiter_name: res.assigned_waiter_name } : st);
+      },
+      error: (err: any) => this.error.set(err.error?.detail || 'Failed to assign waiter')
+    });
   }
 
   // Zoom and pan methods

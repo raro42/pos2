@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from enum import Enum
 from uuid import uuid4
 
+from sqlalchemy import Column, Date, Time
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -62,6 +63,9 @@ class Tenant(SQLModel, table=True):
 
     # Default UI language for this tenant (e.g. en, es, ca, de, zh-CN, hi)
     default_language: str | None = Field(default=None)
+
+    # IANA timezone for this tenant (e.g. America/Mazatlan, Europe/Madrid)
+    timezone: str | None = Field(default=None)
 
     stripe_secret_key: str | None = Field(
         default=None
@@ -226,6 +230,9 @@ class Floor(TenantMixin, table=True):
     sort_order: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    # Default waiter for tables on this floor (fallback when table has no explicit assignment)
+    default_waiter_id: int | None = Field(default=None, foreign_key="user.id")
+
 
 class Table(TenantMixin, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -241,11 +248,37 @@ class Table(TenantMixin, table=True):
     height: float = Field(default=60)
     seat_count: int = Field(default=4)
 
+    # Waiter assignment (overrides floor-level default)
+    assigned_waiter_id: int | None = Field(default=None, foreign_key="user.id")
+
     # Table session and PIN security
     order_pin: str | None = Field(default=None)  # 4-digit PIN for ordering
     is_active: bool = Field(default=False, index=True)  # Whether table is accepting orders
     active_order_id: int | None = Field(default=None)  # Current shared order for this table
     activated_at: datetime | None = Field(default=None)  # When table was activated
+
+
+class ReservationStatus(str, Enum):
+    booked = "booked"
+    seated = "seated"
+    finished = "finished"
+    cancelled = "cancelled"
+
+
+class Reservation(TenantMixin, table=True):
+    """Table reservation: booked -> (optional) seated at table -> finished or cancelled."""
+    __tablename__ = "reservation"
+    id: int | None = Field(default=None, primary_key=True)
+    customer_name: str
+    customer_phone: str
+    reservation_date: date = Field(sa_column=Column(Date, nullable=False))
+    reservation_time: time = Field(sa_column=Column(Time, nullable=False))
+    party_size: int
+    status: ReservationStatus = Field(default=ReservationStatus.booked, index=True)
+    table_id: int | None = Field(default=None, foreign_key="table.id")
+    token: str | None = Field(default=None, unique=True, index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Order(TenantMixin, table=True):
@@ -371,6 +404,42 @@ class TableUpdate(SQLModel):
     width: float | None = None
     height: float | None = None
     seat_count: int | None = None
+    assigned_waiter_id: int | None = None
+
+
+class ReservationCreate(SQLModel):
+    customer_name: str
+    customer_phone: str
+    reservation_date: str  # YYYY-MM-DD
+    reservation_time: str  # HH:MM or HH:MM:SS
+    party_size: int
+    tenant_id: int | None = None  # Required only for public (no auth); staff ignore
+
+
+class ReservationUpdate(SQLModel):
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    reservation_date: str | None = None
+    reservation_time: str | None = None
+    party_size: int | None = None
+
+
+class ReservationStatusUpdate(SQLModel):
+    status: ReservationStatus
+
+
+class ReservationSeat(SQLModel):
+    table_id: int
+
+
+class PublicReservationCreate(SQLModel):
+    """Public booking: tenant_id required. Staff use ReservationCreate (no tenant_id)."""
+    tenant_id: int
+    customer_name: str
+    customer_phone: str
+    reservation_date: str
+    reservation_time: str
+    party_size: int
 
 
 class FloorCreate(SQLModel):
@@ -381,6 +450,7 @@ class FloorCreate(SQLModel):
 class FloorUpdate(SQLModel):
     name: str | None = None
     sort_order: int | None = None
+    default_waiter_id: int | None = None
 
 
 class OrderItemCreate(SQLModel):
@@ -449,6 +519,7 @@ class TenantUpdate(SQLModel):
     currency: str | None = None
 
     default_language: str | None = None
+    timezone: str | None = None
 
     stripe_secret_key: str | None = None
     stripe_publishable_key: str | None = None
