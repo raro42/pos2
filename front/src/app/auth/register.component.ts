@@ -16,6 +16,12 @@ import { ApiService } from '../services/api.service';
           <p>{{ 'AUTH.SET_UP_ORGANIZATION' | translate }}</p>
         </div>
 
+        <div class="register-explanation">
+          <p class="register-explanation-title">{{ 'AUTH.REGISTER_WHO_IS_THIS_FOR' | translate }}</p>
+          <p class="register-explanation-providers">{{ 'AUTH.REGISTER_FOR_PROVIDERS' | translate }}</p>
+          <p class="register-explanation-guests">{{ 'AUTH.REGISTER_GUEST_HINT' | translate }}</p>
+        </div>
+
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
           <div class="form-group">
             <label for="tenant">{{ 'AUTH.ORGANIZATION_NAME' | translate }}</label>
@@ -120,6 +126,35 @@ import { ApiService } from '../services/api.service';
         color: var(--color-text-muted);
         font-size: 0.9375rem;
       }
+    }
+
+    .register-explanation {
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      margin-bottom: var(--space-6);
+      border-left: 4px solid var(--color-primary);
+    }
+
+    .register-explanation-title {
+      font-weight: 600;
+      color: var(--color-text);
+      font-size: 0.9375rem;
+      margin: 0 0 var(--space-2) 0;
+    }
+
+    .register-explanation-providers {
+      color: var(--color-text);
+      font-size: 0.875rem;
+      margin: 0 0 var(--space-2) 0;
+      line-height: 1.45;
+    }
+
+    .register-explanation-guests {
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+      margin: 0;
+      line-height: 1.45;
     }
 
     .error-banner {

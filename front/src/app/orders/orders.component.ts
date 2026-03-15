@@ -1717,7 +1717,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
       paid: { forward: [], backward: ['completed'] },
       cancelled: { forward: [], backward: [] }
     };
-    return transitions[currentStatus] || { forward: [], backward: [] };
+    const key = (currentStatus ?? '').toString().toLowerCase();
+    return transitions[key] ?? { forward: [], backward: [] };
   }
 
   // Get available status transitions for an item
@@ -1729,7 +1730,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
       delivered: { forward: [], backward: ['ready'] },
       cancelled: { forward: [], backward: [] }
     };
-    return transitions[currentStatus] || { forward: [], backward: [] };
+    const key = (currentStatus ?? '').toString().toLowerCase();
+    return transitions[key] ?? { forward: [], backward: [] };
   }
 
   toggleStatusDropdown(orderId: number) {

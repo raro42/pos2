@@ -88,6 +88,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission | '*'>> = {
     'floor:read',
     'order:read',
   ]),
+
+  provider: new Set([]), // Provider portal uses provider_id scoping, not tenant permissions
 };
 
 /**

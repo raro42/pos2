@@ -64,6 +64,10 @@ import { environment } from '../../environments/environment';
       <div class="landing-footer">
         <span>{{ 'AUTH.DONT_HAVE_ACCOUNT' | translate }}</span>
         <a routerLink="/register">{{ 'AUTH.CREATE_ACCOUNT' | translate }}</a>
+        <span class="footer-sep">·</span>
+        <a routerLink="/provider/login" data-testid="landing-provider-login">Provider login</a>
+        <span class="footer-sep">·</span>
+        <a routerLink="/provider/register" data-testid="landing-provider-register">Register as provider</a>
       </div>
       <div class="landing-version-bar" data-testid="landing-version">{{ version || '0.0.0' }} <span class="landing-commit">{{ commitHash || '' }}</span></div>
     </div>
@@ -270,6 +274,11 @@ import { environment } from '../../environments/environment';
 
     .landing-footer a:hover {
       text-decoration: underline;
+    }
+
+    .landing-footer .footer-sep {
+      margin: 0 var(--space-2);
+      color: var(--color-text-muted);
     }
   `],
 })
