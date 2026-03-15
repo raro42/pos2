@@ -2,6 +2,10 @@
 # Deploy script for amvara9. Run from repo root on the server (e.g. /development/pos2).
 # Usage: cd /development/pos2 && bash deploy-amvara9.sh
 # Or from CI: ssh server "cd /development/pos2 && bash -s" < scripts/deploy-amvara9.sh
+#
+# This script does NOT run remove_extra_tenants. That seed deletes all tenants except
+# Cobalto and their users (including demo account ralf@roeber.de). Run it only if you
+# intentionally want a single-tenant (Cobalto-only) server.
 
 set -e
 # Expect to be run from repo root on server, e.g. cd /development/pos2 && bash -s

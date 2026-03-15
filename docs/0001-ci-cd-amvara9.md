@@ -52,3 +52,33 @@ You can override defaults with these repository secrets:
 2. Edit `/development/pos2/config.env` on amvara9 with production values (API_URL, WS_URL, CORS_ORIGINS, SECRET_KEY, etc.). See [0004-deployment.md](0004-deployment.md).
 3. Add `SSH_PRIVATE_KEY_AMVARA9` in GitHub as above.
 4. Push to `master` (or re-run the workflow from the Actions tab) to trigger the first deploy.
+
+## Login / register returning 500
+
+If **login** or **create account** returns 500 on amvara9, the database is likely missing columns or enum values that the app expects. Deploy runs **migrations** automatically; ensure the latest code (and thus migration files) is deployed so that:
+
+- **Migration `20260314000000_add_user_provider_id.sql`** runs: it adds `user.provider_id` and the `user_role` value `'provider'`. Without it, any request that selects or inserts a `User` (login, register) can 500.
+- **Migration `20260315100000_add_provider_company_fields.sql`** runs: it adds provider company/bank columns. Needed for provider portal.
+
+After a normal deploy (`git pull` + `deploy-amvara9.sh`), migrations run via `docker compose exec back python -m app.migrate`. If you previously deployed without these migrations, run deploy again (or on the server run `cd /development/pos2 && docker compose --env-file config.env exec -T back python -m app.migrate`).
+
+## Demo login (ralf@roeber.de) on amvara9
+
+The **deploy script does not delete users**. It only runs migrations, demo tables/products seeds, and catalog imports.
+
+If the demo account **ralf@roeber.de** no longer works on amvara9, it was almost certainly removed when **`remove_extra_tenants`** was run manually at some point. That seed keeps only the tenant "Cobalto" and deletes all other tenants and **all their users** (including ralf@roeber.de if that user belonged to another tenant).
+
+**To restore a working demo login:**
+
+1. **Option A – Use the remaining Cobalto user**  
+   If there is still an owner user for tenant "Cobalto" (tenant id 1), set their password to match dev:
+   ```bash
+   cd /development/pos2
+   USER_EMAIL=<that_user@email> NEW_PASSWORD='WbRS%2026!' docker compose --env-file config.env exec -T back python -m app.seeds.set_user_password
+   ```
+   Log in with that email and the password above. You can change the user’s email to ralf@roeber.de later in Settings or via DB if needed.
+
+2. **Option B – Re-register**  
+   Open `https://<amvara9-domain>/register` and register again with ralf@roeber.de (and the desired password). This creates a new tenant. Use this if you want a separate "Roeber" tenant again.
+
+**Do not run `remove_extra_tenants`** on amvara9 unless you intentionally want a single-tenant (Cobalto-only) server and accept that all other tenants and their users will be deleted.

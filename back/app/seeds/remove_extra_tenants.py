@@ -5,6 +5,12 @@ If no tenant is named "Cobalto", keeps tenant id=1 and renames it to "Cobalto", 
 Deletes tenant data in FK-safe order: orderitem -> order -> reservation -> table -> floor ->
 product -> tenantproduct -> i18n_text (tenant-scoped) -> user -> tenant.
 
+WARNING: This deletes ALL users belonging to removed tenants (e.g. ralf@roeber.de if that
+user was in a non-Cobalto tenant). It is NOT run by deploy-amvara9.sh. If you run it on
+amvara9, the demo account (and any other non-Cobalto tenant users) will be gone. To restore
+a demo login: either re-register at /register, or set the password of the remaining Cobalto
+user with set_user_password (USER_EMAIL=... NEW_PASSWORD=...).
+
 Usage (on server, from repo root):
   docker compose --env-file config.env exec -T back python -m app.seeds.remove_extra_tenants
 
