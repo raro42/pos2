@@ -16,6 +16,7 @@
     "test:landing-version": "node scripts/test-landing-version.mjs",
     "test:landing-provider-links": "node scripts/test-landing-provider-links.mjs",
     "test:provider-register": "node scripts/test-provider-register.mjs",
+    "test:provider-add-product": "node scripts/test-provider-add-product.mjs",
     "test:catalog": "node scripts/test-catalog.mjs",
     "test:order-8-status": "node scripts/test-order-8-status.mjs",
     "test:register-page": "node scripts/test-register-page.mjs"

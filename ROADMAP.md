@@ -16,6 +16,7 @@
 - **Table PIN security**: Table activation, 4-digit PIN validation for placing orders, PIN rate limiting (Redis). See `docs/0009-table-pin-security.md`.
 - **Translations**: Frontend i18n (`@ngx-translate`, `front/public/i18n/*.json`), backend localized messages (`back/app/messages.py`), language detection and persistence. See `docs/0012-translation-implementation.md`.
 - **Deployment**: Config guide for domain/IP, `API_URL`, `WS_URL`, CORS. See `docs/0004-deployment.md`.
+- **Provider portal**: Suppliers register at `/provider/register`, log in at `/provider/login`, manage catalog at `/provider` (tile/list view, search, add/edit/delete products, company details, bank info). API: `GET/PUT /provider/me`, `GET/POST/PUT/DELETE /provider/products`, etc. See `docs/0014-provider-portal.md`.
 
 ### ❌ Missing Features / To Be Implemented
 - **Customer accounts (planned)**: Registration, login, email verification, MFA, customer order history, invoice generation. Not implemented; see `docs/0002-customer-features-plan.md` for full scope.

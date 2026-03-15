@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-03-15
+
+### Added
+
+- **Provider dashboard**: List and tile view toggle plus search (by name, catalog name, external ID) on `/provider`.
+- **Company details toast**: Success toast "Company details saved." after saving provider company details.
+- **Puppeteer test**: `test:provider-add-product` (login as provider, add product, assert it appears in list). Migration `20260315100000_add_provider_company_fields.sql` for provider table company/bank columns.
+
+### Fixed
+
+- **Provider create product 500**: Endpoint returns `model_dump(mode="json")` and wraps in try/except so DB/serialization errors return a clear 500 message.
+- **Landing provider links test**: Navigate by URL to `/provider/register` instead of waiting for client-side navigation after click (fixes timeout with Angular routing).
+
 ## [1.0.4] - 2026-03-15
 
 ### Added

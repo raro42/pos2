@@ -314,6 +314,15 @@ import { environment } from '../../environments/environment';
         </form>
       </div>
     }
+
+    @if (toast()) {
+      <div class="toast" [class]="toast()!.type">
+        <span>{{ toast()!.message }}</span>
+        <button type="button" class="toast-close" (click)="dismissToast()" aria-label="Dismiss">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    }
   `,
   styles: [`
     .provider-portal { min-height: 100vh; background: var(--color-bg); }
@@ -475,6 +484,30 @@ import { environment } from '../../environments/environment';
     .company-field input, .company-field textarea { width: 100%; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 1rem; font-family: inherit; }
     .company-field textarea { resize: vertical; min-height: 4em; }
     .modal-company .modal-actions { flex-shrink: 0; margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+    .toast {
+      position: fixed;
+      bottom: var(--space-6);
+      right: var(--space-6);
+      padding: var(--space-4) var(--space-5);
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      z-index: 1100;
+      animation: toastSlideIn 0.3s ease;
+      max-width: 320px;
+      border-left: 4px solid var(--color-text-muted);
+    }
+    .toast.success { border-left-color: var(--color-success, #16a34a); }
+    .toast.error { border-left-color: var(--color-error, #dc2626); }
+    .toast-close { background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 4px; font-size: 1.25rem; line-height: 1; }
+    .toast-close:hover { color: var(--color-text); }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   `]
 })
 export class ProviderDashboardComponent implements OnInit {
@@ -561,6 +594,22 @@ export class ProviderDashboardComponent implements OnInit {
     this.showCompanyModal.set(false);
   }
 
+  private toastTimeout?: ReturnType<typeof setTimeout>;
+
+  toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  dismissToast() {
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
+    this.toastTimeout = undefined;
+    this.toast.set(null);
+  }
+
+  private showToast(message: string, type: 'success' | 'error' = 'success') {
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
+    this.toast.set({ message, type });
+    this.toastTimeout = setTimeout(() => this.dismissToast(), 4000);
+  }
+
   saveCompany() {
     const data: ProviderUpdateData = {
       full_company_name: this.companyFullCompanyName || undefined,
@@ -579,6 +628,7 @@ export class ProviderDashboardComponent implements OnInit {
         this.provider.set(updated);
         this.savingCompany.set(false);
         this.closeCompanyModal();
+        this.showToast('Company details saved.');
       },
       error: () => this.savingCompany.set(false),
     });

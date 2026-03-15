@@ -32,6 +32,7 @@ The frontend is Angular; the backend is FastAPI with PostgreSQL and Redis. All m
 | **Real-time** | WebSocket updates for order status; token-based WS auth (`/ws-token`). |
 | **i18n & currency** | Multiple UI languages (e.g. en, es, ca, de, zh-CN, hi); backend localized messages; per-tenant currency (EUR, USD, MXN, etc.). |
 | **Multi-tenant** | Isolated data per tenant; first user becomes owner; configurable roles and permissions (e.g. reservation read/write). |
+| **Provider portal** | Suppliers register at `/provider/register`, log in at `/provider/login`, and manage their catalog at `/provider` (tile/list view, search, add/edit/delete products, company details). See [docs/0014-provider-portal.md](docs/0014-provider-portal.md). |
 
 Planned but not yet implemented: customer accounts (registration, MFA, invoices), batch order operations, and stricter “must pay before continuing” flow. See [ROADMAP.md](ROADMAP.md) and [docs/0002-customer-features-plan.md](docs/0002-customer-features-plan.md).
 
@@ -97,6 +98,8 @@ Planned but not yet implemented: customer accounts (registration, MFA, invoices)
 | **DB health** | http://localhost:4202/api/health/db |
 | **Public menu (example)** | http://localhost:4202/menu/{table_token} |
 | **Public booking** | http://localhost:4202/book/{tenantId} |
+| **Provider login** | http://localhost:4202/provider/login |
+| **Provider dashboard** | http://localhost:4202/provider |
 
 If your frontend port is different (e.g. 4203), replace 4202 with that port. See [AGENTS.md](AGENTS.md) for how to detect the port and debug with logs.
 
@@ -138,6 +141,7 @@ Stripe keys are configured per tenant in **Settings** in the admin UI. For deplo
 | [docs/0005-email-sending-options.md](docs/0005-email-sending-options.md) | Email configuration options |
 | [docs/0006-gmail-setup-instructions.md](docs/0006-gmail-setup-instructions.md) | Gmail SMTP setup |
 | [docs/0013-verification-alternatives.md](docs/0013-verification-alternatives.md) | Verification flow alternatives |
+| [docs/0014-provider-portal.md](docs/0014-provider-portal.md) | Provider registration, login, and catalog management |
 
 ---
 

@@ -31,7 +31,7 @@ The main **landing page** (`/`) footer includes a link **“Provider portal”**
 
 | Purpose | URL | Notes |
 |--------|-----|------|
-| Provider dashboard | `/provider` | Lists provider’s products; add/edit/delete, upload image. |
+| Provider dashboard | `/provider` | Lists provider’s products with tile/list view and search; add/edit/delete, upload image; company details (with toast on save). |
 
 If a user without `provider_id` (or not logged in) opens `/provider`, they are redirected to `/provider/login`.
 

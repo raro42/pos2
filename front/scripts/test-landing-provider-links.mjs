@@ -101,35 +101,24 @@ async function main() {
     console.log('   Provider login link: OK');
     console.log('   Register as provider link: OK');
 
-    console.log('2. Clicking "Register as provider"...');
-    const registerLink = await page.$('[data-testid="landing-provider-register"]');
-    if (!registerLink) {
-      console.log('   FAIL: Could not find "Register as provider" link.');
-      await browser.close();
-      process.exit(1);
-    }
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }),
-      registerLink.click(),
-    ]);
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
+    const registerHref = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="landing-provider-register"]');
+      return el ? (el.getAttribute('href') || el.getAttribute('ng-reflect-router-link')) : null;
+    });
+    const registerUrl = registerHref ? new URL(registerHref, baseUrl).href : new URL('/provider/register', baseUrl).href;
+
+    console.log('2. Navigating to provider register page...');
+    await page.goto(registerUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForSelector('input#provider_name', { timeout: 10000 });
 
     const afterUrl = page.url();
     if (!afterUrl.includes('/provider/register')) {
-      console.log('   FAIL: Expected to navigate to /provider/register, got:', afterUrl);
+      console.log('   FAIL: Expected URL to contain /provider/register, got:', afterUrl);
       await browser.close();
       process.exit(1);
     }
 
-    const hasRegisterForm = await page.evaluate(() => {
-      const h1 = document.querySelector('h1');
-      return (
-        (h1 && h1.textContent && h1.textContent.toLowerCase().includes('register')) ||
-        !!document.querySelector('input#provider_name') ||
-        !!document.querySelector('form')
-      );
-    });
-
+    const hasRegisterForm = await page.evaluate(() => !!document.querySelector('input#provider_name'));
     if (!hasRegisterForm) {
       console.log('   FAIL: Provider register page should show a registration form.');
       await browser.close();

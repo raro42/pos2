@@ -1967,65 +1967,74 @@ def provider_create_product(
     ],
     body: models.ProviderProductCreate,
     session: Session = Depends(get_session),
-) -> models.ProviderProduct:
+) -> dict:
     """Create a provider product; create new catalog item if catalog_id not provided."""
     _user, provider = current
-    catalog_id = body.catalog_id
-    if catalog_id is not None:
-        catalog_item = session.get(models.ProductCatalog, catalog_id)
-        if not catalog_item:
-            raise HTTPException(status_code=404, detail="Catalog item not found")
-        name = body.name or catalog_item.name
-    else:
-        # Create new catalog item
-        normalized = _catalog_normalized_name(body.name)
-        existing = session.exec(
-            select(models.ProductCatalog).where(
-                models.ProductCatalog.normalized_name == normalized
-            )
-        ).first()
-        if existing:
-            catalog_item = existing
+    try:
+        catalog_id = body.catalog_id
+        if catalog_id is not None:
+            catalog_item = session.get(models.ProductCatalog, catalog_id)
+            if not catalog_item:
+                raise HTTPException(status_code=404, detail="Catalog item not found")
             name = body.name or catalog_item.name
         else:
-            catalog_item = models.ProductCatalog(
-                name=body.name,
-                normalized_name=normalized,
-                category=body.category,
-                subcategory=body.subcategory,
-                description=body.description,
-                brand=body.brand,
-                barcode=body.barcode,
-            )
-            session.add(catalog_item)
-            session.commit()
-            session.refresh(catalog_item)
-            name = body.name
-        catalog_id = catalog_item.id
-    external_id = body.external_id or f"pp-{provider.id}-{uuid4().hex[:12]}"
-    pp = models.ProviderProduct(
-        catalog_id=catalog_id,
-        provider_id=provider.id,
-        external_id=external_id,
-        name=name,
-        price_cents=body.price_cents,
-        availability=body.availability,
-        country=body.country,
-        region=body.region,
-        grape_variety=body.grape_variety,
-        volume_ml=body.volume_ml,
-        unit=body.unit,
-        detailed_description=body.detailed_description,
-        wine_style=body.wine_style,
-        vintage=body.vintage,
-        winery=body.winery,
-        aromas=body.aromas,
-        elaboration=body.elaboration,
-    )
-    session.add(pp)
-    session.commit()
-    session.refresh(pp)
-    return pp
+            # Create new catalog item
+            normalized = _catalog_normalized_name(body.name)
+            existing = session.exec(
+                select(models.ProductCatalog).where(
+                    models.ProductCatalog.normalized_name == normalized
+                )
+            ).first()
+            if existing:
+                catalog_item = existing
+                name = body.name or catalog_item.name
+            else:
+                catalog_item = models.ProductCatalog(
+                    name=body.name,
+                    normalized_name=normalized,
+                    category=body.category,
+                    subcategory=body.subcategory,
+                    description=body.description,
+                    brand=body.brand,
+                    barcode=body.barcode,
+                )
+                session.add(catalog_item)
+                session.commit()
+                session.refresh(catalog_item)
+                name = body.name
+            catalog_id = catalog_item.id
+        external_id = body.external_id or f"pp-{provider.id}-{uuid4().hex[:12]}"
+        pp = models.ProviderProduct(
+            catalog_id=catalog_id,
+            provider_id=provider.id,
+            external_id=external_id,
+            name=name,
+            price_cents=body.price_cents,
+            availability=body.availability,
+            country=body.country,
+            region=body.region,
+            grape_variety=body.grape_variety,
+            volume_ml=body.volume_ml,
+            unit=body.unit,
+            detailed_description=body.detailed_description,
+            wine_style=body.wine_style,
+            vintage=body.vintage,
+            winery=body.winery,
+            aromas=body.aromas,
+            elaboration=body.elaboration,
+        )
+        session.add(pp)
+        session.commit()
+        session.refresh(pp)
+        return pp.model_dump(mode="json")
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create product: {e!s}",
+        ) from e
 
 
 @app.put("/provider/products/{product_id}")

@@ -95,7 +95,41 @@ npm run test:landing-provider-links --prefix front
 
 ---
 
-### 4. Register page
+### 4. Provider section
+
+Tests for the provider portal: landing links, registration, login, and dashboard (add product).
+
+**Landing → provider links** (see §3): `test-landing-provider-links` checks footer links to `/provider/login` and `/provider/register` and that the register link opens the provider registration form.
+
+**Provider registration** (creates a new provider account; no cleanup — leaves DB entry):
+
+```bash
+npm run test:provider-register --prefix front
+# Or: BASE_URL=http://127.0.0.1:4202 HEADLESS=1 node front/scripts/test-provider-register.mjs
+```
+
+- **Env:** `BASE_URL`, `PROVIDER_NAME`, `PROVIDER_EMAIL` (default: `provider-<timestamp>@example.com`), `PROVIDER_PASSWORD`, `PROVIDER_FULL_NAME`, `HEADLESS`.
+- Opens `/provider/register`, fills form, submits; asserts success or reports error.
+
+**Provider login + add product** (requires an existing provider account):
+
+```bash
+PROVIDER_TEST_EMAIL=provider@example.com PROVIDER_TEST_PASSWORD=secret npm run test:provider-add-product --prefix front
+# Or: BASE_URL=http://127.0.0.1:4202 HEADLESS=1 node front/scripts/test-provider-add-product.mjs
+```
+
+- **Env:** `BASE_URL`, `PROVIDER_TEST_EMAIL`, `PROVIDER_TEST_PASSWORD` (required), `PRODUCT_NAME` (optional), `HEADLESS`.
+- Logs in at `/provider/login`, goes to `/provider`, opens Add product, fills form, submits; asserts product appears or no error.
+
+| Script | Purpose |
+|--------|---------|
+| `front/scripts/test-landing-provider-links.mjs` | Landing footer provider login/register links and register page load. |
+| `front/scripts/test-provider-register.mjs` | Full provider registration flow. |
+| `front/scripts/test-provider-add-product.mjs` | Provider login and add product on dashboard. |
+
+---
+
+### 5. Register page (staff/restaurant)
 
 **Content (Who is this for? explanation):**
 
@@ -117,7 +151,7 @@ npm run test:register --prefix front
 
 ---
 
-### 5. Orders (status dropdown)
+### 6. Orders (status dropdown)
 
 Order #8 (or `ORDER_ID`) status dropdown and “next status” options (e.g. Preparing).
 
@@ -130,7 +164,7 @@ npm run test:order-8-status --prefix front
 
 ---
 
-### 6. Catalog (products + images)
+### 7. Catalog (products + images)
 
 Login, open `/catalog`, count cards and how many show real images vs placeholders.
 
@@ -143,7 +177,7 @@ npm run test:catalog --prefix front
 
 ---
 
-### 7. Menu logo
+### 8. Menu logo
 
 Restaurant logo (e.g. Cobalto SVG) on customer menu page `/menu/{tableToken}`.
 
@@ -155,7 +189,7 @@ node front/scripts/test-menu-logo.mjs
 
 ---
 
-### 8. WebSocket
+### 9. WebSocket
 
 WebSocket connectivity after owner login (e.g. on `/orders`). Requires full stack including ws-bridge.
 
@@ -180,6 +214,8 @@ From repo root: `npm run <script> --prefix front`. From `front/`: `npm run <scri
 | `test:demo-data` | `scripts/test-demo-data.mjs` |
 | `test:landing-version` | `scripts/test-landing-version.mjs` |
 | `test:landing-provider-links` | `scripts/test-landing-provider-links.mjs` |
+| `test:provider-register` | `scripts/test-provider-register.mjs` |
+| `test:provider-add-product` | `scripts/test-provider-add-product.mjs` |
 | `test:catalog` | `scripts/test-catalog.mjs` |
 | `test:order-8-status` | `scripts/test-order-8-status.mjs` |
 | `test:register-page` | `scripts/test-register-page.mjs` |

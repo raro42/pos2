@@ -37,6 +37,8 @@ When debugging the running app (e.g. frontend not loading a route, API issues):
 
 Run these from the repo root or from `front/` when the app is up (e.g. on port 4203 or 4202). Chrome must be installed (e.g. `/Applications/Google Chrome.app` on macOS). Scripts auto-detect the first responding port among 4203, 4202, 4200.
 
+**Provider portal (manual testing):** `.env` can define `PROVIDER_TEST_EMAIL=pos-provider@amvara.de` and `PROVIDER_TEST_PASSWORD=123456` for testing the provider dashboard at `/provider` (log in at `/provider/login`).
+
 **Staff flow (login → reservations → create → cancel):**
 
 ```bash
