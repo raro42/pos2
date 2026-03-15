@@ -29,6 +29,10 @@ fi
 echo "Waiting for back to be ready..."
 sleep 15
 
+# Back container runs as uid 1000; catalog imports need to write to back/uploads
+mkdir -p back/uploads back/uploads/providers
+chown -R 1000:1000 back/uploads 2>/dev/null || sudo chown -R 1000:1000 back/uploads 2>/dev/null || true
+
 echo "Running migrations..."
 docker compose --env-file config.env exec -T back python -m app.migrate || true
 
