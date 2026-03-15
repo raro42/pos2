@@ -23,6 +23,7 @@ from . import models, security
 from .db import check_db_connection, create_db_and_tables, get_session
 from .settings import settings
 from .inventory_routes import router as inventory_router
+from .reports_routes import router as reports_router
 from .inventory_service import deduct_inventory_for_order
 from . import inventory_models
 from .translation_service import TranslationService
@@ -179,6 +180,8 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Register Inventory API router
 app.include_router(inventory_router, prefix="/inventory", tags=["Inventory"])
+# Reports (sales / revenue analysis)
+app.include_router(reports_router, prefix="/reports", tags=["Reports"])
 
 
 # ============ IMAGE OPTIMIZATION ============

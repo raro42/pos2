@@ -73,7 +73,21 @@ npm run test:demo-data --prefix front
 
 ---
 
-### 3. Landing page
+### 3. Tables page (view toggle and table view)
+
+Login, open `/tables`, then if the view toggle is present (tables exist), switch to Table view and assert the data table with columns is shown.
+
+```bash
+npm run test:tables-page --prefix front
+# Or: BASE_URL=http://127.0.0.1:4202 LOGIN_EMAIL=... LOGIN_PASSWORD=... node front/scripts/test-tables-page.mjs
+```
+
+- **Env:** `BASE_URL`, `LOGIN_EMAIL`, `LOGIN_PASSWORD`, `HEADLESS`.
+- Asserts: on `/tables` after login; when view toggle exists, Table view shows `.tables-data-table` with header columns.
+
+---
+
+### 4. Landing page
 
 **Version in footer:**
 
@@ -95,7 +109,7 @@ npm run test:landing-provider-links --prefix front
 
 ---
 
-### 4. Provider section
+### 5. Provider section
 
 Tests for the provider portal: landing links, registration, login, and dashboard (add product).
 
@@ -129,7 +143,7 @@ PROVIDER_TEST_EMAIL=provider@example.com PROVIDER_TEST_PASSWORD=secret npm run t
 
 ---
 
-### 5. Register page (staff/restaurant)
+### 6. Register page (staff/restaurant)
 
 **Content (Who is this for? explanation):**
 
@@ -151,7 +165,7 @@ npm run test:register --prefix front
 
 ---
 
-### 6. Orders (status dropdown)
+### 7. Orders (status dropdown)
 
 Order #8 (or `ORDER_ID`) status dropdown and “next status” options (e.g. Preparing).
 
@@ -164,7 +178,20 @@ npm run test:order-8-status --prefix front
 
 ---
 
-### 7. Catalog (products + images)
+### Reports (Sales & Revenue) smoke test
+
+Login as **owner or admin**, open `/reports`, and assert the Reports page loads (date range inputs and `[data-testid="reports-page"]` present). Use after Reports feature work.
+
+```bash
+npm run test:reports --prefix front
+# Or: BASE_URL=http://127.0.0.1:4202 HEADLESS=1 LOGIN_EMAIL=... LOGIN_PASSWORD=... node front/scripts/test-reports.mjs
+```
+
+- **Env:** `BASE_URL`, `LOGIN_EMAIL`, `LOGIN_PASSWORD` (must be owner or admin), `HEADLESS`.
+
+---
+
+### 8. Catalog (products + images)
 
 Login, open `/catalog`, count cards and how many show real images vs placeholders.
 
@@ -219,6 +246,7 @@ From repo root: `npm run <script> --prefix front`. From `front/`: `npm run <scri
 | `test:catalog` | `scripts/test-catalog.mjs` |
 | `test:order-8-status` | `scripts/test-order-8-status.mjs` |
 | `test:register-page` | `scripts/test-register-page.mjs` |
+| `test:reports` | `scripts/test-reports.mjs` (Reports page smoke; owner/admin) |
 
 `test-menu-logo` and `test-websocket` have no npm script; run via `node front/scripts/<name>.mjs`.
 

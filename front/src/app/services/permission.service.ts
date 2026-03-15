@@ -42,7 +42,9 @@ export type Permission =
   | 'inventory:write'
   // Translations
   | 'translation:read'
-  | 'translation:write';
+  | 'translation:write'
+  // Reports (revenue analysis)
+  | 'report:read';
 
 /**
  * Role to permissions mapping (mirrors backend ROLE_PERMISSIONS)
@@ -62,6 +64,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission | '*'>> = {
     'order:mark_paid', 'order:cancel', 'order:remove_item',
     'inventory:read', 'inventory:write',
     'translation:read', 'translation:write',
+    'report:read',
   ]),
 
   kitchen: new Set([
@@ -105,6 +108,7 @@ const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/orders': ['owner', 'admin', 'kitchen', 'waiter', 'receptionist'],
   '/kitchen': ['owner', 'admin', 'kitchen', 'waiter', 'receptionist'],
   '/inventory': ['owner', 'admin'],
+  '/reports': ['owner', 'admin'],
   '/settings': ['owner', 'admin'],
   '/users': ['owner', 'admin'],
 };

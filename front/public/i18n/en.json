@@ -1,5 +1,7 @@
 {
   "COMMON": {
+    "ACTIONS": "Actions",
+    "COPY": "Copy",
     "SAVE": "Save",
     "SAVING": "Saving...",
     "CANCEL": "Cancel",
@@ -332,6 +334,36 @@
     "NO_ACTIVE_ORDERS_DESC": "New orders will appear here when customers place them",
     "NOTES": "Notes"
   },
+  "REPORTS": {
+    "TITLE": "Sales & Revenue",
+    "SUBTITLE": "Revenue analysis from paid orders",
+    "DATE_RANGE": "Date range",
+    "FROM": "From",
+    "TO": "To",
+    "APPLY": "Apply",
+    "REFRESH": "Refresh",
+    "LOADING": "Loading report...",
+    "NO_DATA": "No sales in this period",
+    "NO_DATA_DESC": "Paid or completed orders in the selected range will appear here.",
+    "SUMMARY": "Summary",
+    "TOTAL_REVENUE": "Total revenue",
+    "TOTAL_ORDERS": "Orders",
+    "DAILY_SALES": "Daily sales",
+    "BY_PRODUCT": "By product",
+    "BY_CATEGORY": "By category",
+    "BY_TABLE": "By table",
+    "BY_WAITER": "By waiter",
+    "PRODUCT": "Product",
+    "CATEGORY": "Category",
+    "TABLE": "Table",
+    "WAITER": "Waiter",
+    "QUANTITY": "Qty",
+    "REVENUE": "Revenue",
+    "EXPORT": "Export",
+    "EXPORT_CSV": "Export CSV",
+    "EXPORT_EXCEL": "Export Excel",
+    "EXPORTING": "Exporting..."
+  },
   "TABLES": {
     "TITLE": "Tables",
     "FLOOR_PLAN": "Floor Plan",
@@ -379,7 +411,12 @@
     "UNASSIGNED": "Unassigned",
     "ASSIGN_WAITER": "Assign Waiter",
     "DEFAULT_WAITER": "Default Waiter",
-    "SECTION_DEFAULT": "Section default"
+    "SECTION_DEFAULT": "Section default",
+    "VIEW_TILES": "Tiles",
+    "VIEW_TABLE": "Table",
+    "COL_STATUS": "Status",
+    "PIN": "PIN",
+    "OPEN_MENU": "Open menu"
   },
   "TABLE_STATUS": {
     "available": "Available",

@@ -44,5 +44,8 @@ export const routes: Routes = [
   // Inventory module (lazy loaded) - admin only
   { path: 'inventory', canActivate: [authGuard, adminGuard], loadChildren: () => import('./inventory/inventory.routes').then(m => m.INVENTORY_ROUTES) },
 
+  // Reports (sales / revenue) - owner & admin
+  { path: 'reports', canActivate: [authGuard, adminGuard], loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent) },
+
   { path: '**', redirectTo: '' }
 ];

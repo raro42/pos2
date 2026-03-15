@@ -62,6 +62,9 @@ class Permission(str, Enum):
     TRANSLATION_READ = "translation:read"
     TRANSLATION_WRITE = "translation:write"
 
+    # Reports (revenue / sales analysis – owner & admin)
+    REPORT_READ = "report:read"
+
 
 # Map roles to their permissions
 ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
@@ -104,6 +107,8 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         # Translations
         Permission.TRANSLATION_READ,
         Permission.TRANSLATION_WRITE,
+        # Reports
+        Permission.REPORT_READ,
     },
     
     UserRole.kitchen: {

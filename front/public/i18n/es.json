@@ -1,5 +1,7 @@
 {
   "COMMON": {
+    "ACTIONS": "Acciones",
+    "COPY": "Copiar",
     "SAVE": "Guardar",
     "SAVING": "Guardando...",
     "CANCEL": "Cancelar",
@@ -333,6 +335,36 @@
     "NO_ACTIVE_ORDERS_DESC": "Los nuevos pedidos aparecerán aquí",
     "NOTES": "Notas"
   },
+  "REPORTS": {
+    "TITLE": "Ventas e ingresos",
+    "SUBTITLE": "Análisis de ingresos de pedidos pagados",
+    "DATE_RANGE": "Rango de fechas",
+    "FROM": "Desde",
+    "TO": "Hasta",
+    "APPLY": "Aplicar",
+    "REFRESH": "Actualizar",
+    "LOADING": "Cargando informe...",
+    "NO_DATA": "Sin ventas en este periodo",
+    "NO_DATA_DESC": "Los pedidos pagados o completados en el rango seleccionado aparecerán aquí.",
+    "SUMMARY": "Resumen",
+    "TOTAL_REVENUE": "Ingresos totales",
+    "TOTAL_ORDERS": "Pedidos",
+    "DAILY_SALES": "Ventas diarias",
+    "BY_PRODUCT": "Por producto",
+    "BY_CATEGORY": "Por categoría",
+    "BY_TABLE": "Por mesa",
+    "BY_WAITER": "Por camarero",
+    "PRODUCT": "Producto",
+    "CATEGORY": "Categoría",
+    "TABLE": "Mesa",
+    "WAITER": "Camarero",
+    "QUANTITY": "Cant.",
+    "REVENUE": "Ingresos",
+    "EXPORT": "Exportar",
+    "EXPORT_CSV": "Exportar CSV",
+    "EXPORT_EXCEL": "Exportar Excel",
+    "EXPORTING": "Exportando..."
+  },
   "TABLES": {
     "TITLE": "Mesas",
     "FLOOR_PLAN": "Plano del Local",
@@ -380,7 +412,12 @@
     "UNASSIGNED": "Sin asignar",
     "ASSIGN_WAITER": "Asignar camarero",
     "DEFAULT_WAITER": "Camarero por defecto",
-    "SECTION_DEFAULT": "Por defecto de sección"
+    "SECTION_DEFAULT": "Por defecto de sección",
+    "VIEW_TILES": "Mosaicos",
+    "VIEW_TABLE": "Tabla",
+    "COL_STATUS": "Estado",
+    "PIN": "PIN",
+    "OPEN_MENU": "Abrir menú"
   },
   "TABLE_STATUS": {
     "available": "Disponible",

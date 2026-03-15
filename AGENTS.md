@@ -11,7 +11,18 @@ These instructions apply to all work in this repository:
 - Always check container logs after making changes, to spot errors.
 - Never use `npm install`; always use `npm ci --ignore-scripts`, pin versions in package.json/package-lock.json, and avoid running scripts on install (supply chain risk).
 
-- **Smoke tests after changes:** After any change that could affect the running app (code, config, Docker, env), run at least a quick smoke test so regressions (e.g. 503, broken routes, failed build) are caught before the user hits them. For example: hit the app URL (e.g. `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:4202/`) or run the Puppeteer landing test (`BASE_URL=http://127.0.0.1:4202 HEADLESS=1 npm run test:landing-version` from `front/`). If the app is not up, run `docker compose ps` and `docker compose logs --tail=50 front` (and back/haproxy as needed) to diagnose before concluding.
+## Smoke tests required
+
+**After every new feature, fix, or code change** that can affect the running app (frontend, backend, config, Docker, env), **smoke tests are required** so regressions (503, broken routes, failed build, broken flows) are caught before the user hits them.
+
+1. **Minimum:** Confirm the app responds (e.g. `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:4202/` returns 200) or run the Puppeteer landing test:
+   ```bash
+   cd front && BASE_URL=http://127.0.0.1:4202 HEADLESS=1 npm run test:landing-version
+   ```
+2. **For changes that add or touch a specific flow:** Run the relevant Puppeteer test (e.g. after Reports work: `npm run test:reports` from `front/` with `LOGIN_EMAIL`/`LOGIN_PASSWORD` for an admin/owner user).
+3. If the app is not up, run `docker compose ps` and `docker compose logs --tail=50 front` (and back/haproxy as needed) to diagnose before concluding.
+
+See **Reservation tests (Puppeteer)** and **Demo tables** below for more test scripts; `docs/testing.md` lists all Puppeteer tests.
 
 ## Docker: status, port, and logs
 

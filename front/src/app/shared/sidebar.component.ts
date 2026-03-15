@@ -93,6 +93,14 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
              </svg>
              <span>{{ 'NAV.KITCHEN_DISPLAY' | translate }}</span>
            </a>
+           @if (canViewReports()) {
+             <a routerLink="/reports" routerLinkActive="active" class="nav-link" (click)="closeSidebar()">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+               </svg>
+               <span>{{ 'NAV.REPORTS' | translate }}</span>
+             </a>
+           }
            <!-- Inventory Module (Admin only) -->
            @if (canViewInventory()) {
              <div class="nav-section">
@@ -198,6 +206,7 @@ export class SidebarComponent implements OnInit {
   canViewReservations = computed(() => this.permissions.hasPermission(this.user(), 'reservation:read'));
   canViewSettings = computed(() => this.permissions.isAdmin(this.user()));
   canViewInventory = computed(() => this.permissions.isAdmin(this.user()));
+  canViewReports = computed(() => this.permissions.isAdmin(this.user()));
   canViewUsers = computed(() => this.permissions.isAdmin(this.user()));
 
   ngOnInit() {

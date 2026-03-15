@@ -411,6 +411,21 @@ export interface OrderHistoryItem {
   total_cents: number;
 }
 
+/** Sales report payload from GET /reports/sales */
+export interface SalesReport {
+  from_date: string;
+  to_date: string;
+  summary: {
+    total_revenue_cents: number;
+    total_orders: number;
+    daily: { date: string; revenue_cents: number; order_count: number }[];
+  };
+  by_product: { product_id: number; product_name: string; category?: string; quantity: number; revenue_cents: number }[];
+  by_category: { category: string; quantity: number; revenue_cents: number }[];
+  by_table: { table_name: string; revenue_cents: number; order_count: number }[];
+  by_waiter: { waiter_name: string; revenue_cents: number; order_count: number }[];
+}
+
 // Provider & Catalog Interfaces
 export interface Provider {
   id?: number;
@@ -834,6 +849,20 @@ export class ApiService {
       url += `?${params.join('&')}`;
     }
     return this.http.delete(url);
+  }
+
+  // Reports (sales / revenue analysis)
+  getSalesReports(fromDate: string, toDate: string): Observable<SalesReport> {
+    const params = { from_date: fromDate, to_date: toDate };
+    return this.http.get<SalesReport>(`${this.apiUrl}/reports/sales`, { params });
+  }
+
+  getReportsExport(fromDate: string, toDate: string, format: 'csv' | 'xlsx', report: string): Observable<Blob> {
+    const params = { from_date: fromDate, to_date: toDate, format, report };
+    return this.http.get(`${this.apiUrl}/reports/export`, {
+      params,
+      responseType: 'blob',
+    });
   }
 
   // Public Menu (no auth)
